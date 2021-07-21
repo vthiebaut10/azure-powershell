@@ -58,7 +58,6 @@ directive:
   - where:
       verb: Set
       subject: DefaultAccount
-      parameter-name: 
     hide: true
   - where:
       subject: PrivateEndpointConnection|PrivateLinkResource
