@@ -53,7 +53,7 @@ VIRTUALNETWORKPEERINGPARAMETER <IVirtualNetworkPeering>: Peerings in a VirtualNe
   [RemoteVirtualNetworkId <String>]: The Id of the remote virtual network.
   [UseRemoteGateway <Boolean?>]: If remote gateways can be used on this virtual network. If the flag is set to true, and allowGatewayTransit on remote peering is also true, virtual network will use gateways of remote virtual network for transit. Only one peering can have this flag set to true. This flag cannot be set if virtual network already has a gateway.
 .Link
-https://docs.microsoft.com/en-us/powershell/module/az.databricks/new-azdatabricksvnetpeering
+https://docs.microsoft.com/powershell/module/az.databricks/new-azdatabricksvnetpeering
 #>
 function New-AzDatabricksVNetPeering {
 [OutputType([Microsoft.Azure.PowerShell.Cmdlets.Databricks.Models.Api20180401.IVirtualNetworkPeering])]
@@ -143,6 +143,7 @@ begin {
         $mapping = @{
             CreateViaIdentity = 'Az.Databricks.private\New-AzDatabricksVNetPeering_CreateViaIdentity';
         }
+
         $wrappedCmd = $ExecutionContext.InvokeCommand.GetCommand(($mapping[$parameterSet]), [System.Management.Automation.CommandTypes]::Cmdlet)
         $scriptCmd = {& $wrappedCmd @PSBoundParameters}
         $steppablePipeline = $scriptCmd.GetSteppablePipeline($MyInvocation.CommandOrigin)

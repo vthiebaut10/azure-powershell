@@ -30,7 +30,7 @@ PS C:\> {{ Add code here }}
 .Outputs
 Microsoft.Azure.PowerShell.Cmdlets.Databricks.Models.Api20180401.IOperation
 .Link
-https://docs.microsoft.com/en-us/powershell/module/az.databricks/get-azdatabricksoperation
+https://docs.microsoft.com/powershell/module/az.databricks/get-azdatabricksoperation
 #>
 function Get-AzDatabricksOperation {
 [OutputType([Microsoft.Azure.PowerShell.Cmdlets.Databricks.Models.Api20180401.IOperation])]
@@ -94,6 +94,7 @@ begin {
         $mapping = @{
             List = 'Az.Databricks.private\Get-AzDatabricksOperation_List';
         }
+
         $wrappedCmd = $ExecutionContext.InvokeCommand.GetCommand(($mapping[$parameterSet]), [System.Management.Automation.CommandTypes]::Cmdlet)
         $scriptCmd = {& $wrappedCmd @PSBoundParameters}
         $steppablePipeline = $scriptCmd.GetSteppablePipeline($MyInvocation.CommandOrigin)

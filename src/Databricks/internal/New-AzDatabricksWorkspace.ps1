@@ -88,7 +88,7 @@ PARAMETER <IWorkspace>: Information about workspace.
   [SkuTier <String>]: The SKU tier.
   [UiDefinitionUri <String>]: The blob URI where the UI definition file is located.
 .Link
-https://docs.microsoft.com/en-us/powershell/module/az.databricks/new-azdatabricksworkspace
+https://docs.microsoft.com/powershell/module/az.databricks/new-azdatabricksworkspace
 #>
 function New-AzDatabricksWorkspace {
 [OutputType([Microsoft.Azure.PowerShell.Cmdlets.Databricks.Models.Api20180401.IWorkspace])]
@@ -141,6 +141,7 @@ param(
     ${AmlWorkspaceIdValue},
 
     [Parameter(ParameterSetName='CreateExpanded')]
+    [AllowEmptyCollection()]
     [Microsoft.Azure.PowerShell.Cmdlets.Databricks.Category('Body')]
     [Microsoft.Azure.PowerShell.Cmdlets.Databricks.Models.Api20180401.IWorkspaceProviderAuthorization[]]
     # The workspace provider authorizations.
@@ -315,6 +316,7 @@ begin {
         if (('CreateExpanded') -contains $parameterSet -and -not $PSBoundParameters.ContainsKey('SubscriptionId')) {
             $PSBoundParameters['SubscriptionId'] = (Get-AzContext).Subscription.Id
         }
+
         $wrappedCmd = $ExecutionContext.InvokeCommand.GetCommand(($mapping[$parameterSet]), [System.Management.Automation.CommandTypes]::Cmdlet)
         $scriptCmd = {& $wrappedCmd @PSBoundParameters}
         $steppablePipeline = $scriptCmd.GetSteppablePipeline($MyInvocation.CommandOrigin)
