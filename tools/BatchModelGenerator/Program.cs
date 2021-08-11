@@ -46,6 +46,7 @@ namespace PSModelGenerator
             {"Microsoft.Azure.Batch.ApplicationPackageReference", "PSApplicationPackageReference"},
             {"Microsoft.Azure.Batch.AzureBlobFileSystemConfiguration", "PSAzureBlobFileSystemConfiguration"},
             {"Microsoft.Azure.Batch.AzureFileShareConfiguration", "PSAzureFileShareConfiguration"},
+            {"Microsoft.Azure.Batch.BatchPoolIdentity", "PSBatchPoolIdentity"},
             {"Microsoft.Azure.Batch.Certificate", "PSCertificate"},
             {"Microsoft.Azure.Batch.CertificateReference", "PSCertificateReference"},
             {"Microsoft.Azure.Batch.CifsMountConfiguration", "PSCifsMountConfiguration"},
@@ -57,12 +58,14 @@ namespace PSModelGenerator
             {"Microsoft.Azure.Batch.ComputeNode", "PSComputeNode"},
             {"Microsoft.Azure.Batch.ComputeNodeEndpointConfiguration", "PSComputeNodeEndpointConfiguration"},
             {"Microsoft.Azure.Batch.ComputeNodeError", "PSComputeNodeError"},
+            {"Microsoft.Azure.Batch.ComputeNodeIdentityReference", "PSComputeNodeIdentityReference" },
             {"Microsoft.Azure.Batch.ComputeNodeInformation", "PSComputeNodeInformation"},
             {"Microsoft.Azure.Batch.ComputeNodeUser", "PSComputeNodeUser"},
             {"Microsoft.Azure.Batch.ContainerConfiguration", "PSContainerConfiguration"},
             {"Microsoft.Azure.Batch.ContainerRegistry", "PSContainerRegistry"},
             {"Microsoft.Azure.Batch.DataDisk", "PSDataDisk"},
             {"Microsoft.Azure.Batch.DeleteCertificateError", "PSDeleteCertificateError"},
+            {"Microsoft.Azure.Batch.DiffDiskSettings", "PSDiffDiskSettings"},
             {"Microsoft.Azure.Batch.DiskEncryptionConfiguration", "PSDiskEncryptionConfiguration"},
             {"Microsoft.Azure.Batch.EnvironmentSetting", "PSEnvironmentSetting"},
             {"Microsoft.Azure.Batch.ExitConditions", "PSExitConditions"},
@@ -100,6 +103,8 @@ namespace PSModelGenerator
             {"Microsoft.Azure.Batch.NetworkSecurityGroupRule", "PSNetworkSecurityGroupRule"},
             {"Microsoft.Azure.Batch.NodeCounts", "PSNodeCounts"},
             {"Microsoft.Azure.Batch.NodeFile", "PSNodeFile"},
+            {"Microsoft.Azure.Batch.NodePlacementConfiguration", "PSNodePlacementConfiguration"},
+            {"Microsoft.Azure.Batch.OSDisk", "PSOSDisk"},
             {"Microsoft.Azure.Batch.OutputFile", "PSOutputFile"},
             {"Microsoft.Azure.Batch.OutputFileDestination", "PSOutputFileDestination"},
             {"Microsoft.Azure.Batch.OutputFileUploadOptions", "PSOutputFileUploadOptions"},
@@ -123,18 +128,23 @@ namespace PSModelGenerator
             {"Microsoft.Azure.Batch.TaskContainerExecutionInformation", "PSTaskContainerExecutionInformation"},
             {"Microsoft.Azure.Batch.TaskContainerSettings", "PSTaskContainerSettings"},
             {"Microsoft.Azure.Batch.TaskCounts", "PSTaskCounts"},
+            {"Microsoft.Azure.Batch.TaskCountsResult", "PSTaskCountsResult"},
             {"Microsoft.Azure.Batch.TaskDependencies", "PSTaskDependencies"},
             {"Microsoft.Azure.Batch.TaskExecutionInformation", "PSTaskExecutionInformation"},
             {"Microsoft.Azure.Batch.TaskInformation", "PSTaskInformation"},
             {"Microsoft.Azure.Batch.TaskIdRange", "PSTaskIdRange"},
             {"Microsoft.Azure.Batch.TaskFailureInformation", "PSTaskFailureInformation"},
             {"Microsoft.Azure.Batch.TaskSchedulingPolicy", "PSTaskSchedulingPolicy"},
+            {"Microsoft.Azure.Batch.TaskSlotCounts", "PSTaskSlotCounts"},
             {"Microsoft.Azure.Batch.TaskStatistics", "PSTaskStatistics"},
             {"Microsoft.Azure.Batch.UploadBatchServiceLogsResult", "PSStartComputeNodeServiceLogUploadResult"},
             {"Microsoft.Azure.Batch.UsageStatistics", "PSUsageStatistics"},
             {"Microsoft.Azure.Batch.UserAccount", "PSUserAccount"},
+            {"Microsoft.Azure.Batch.UserAssignedIdentity", "PSUserAssignedIdentity"},
             {"Microsoft.Azure.Batch.UserIdentity", "PSUserIdentity"},
             {"Microsoft.Azure.Batch.VirtualMachineConfiguration", "PSVirtualMachineConfiguration"},
+            {"Microsoft.Azure.Batch.VirtualMachineInfo", "PSVirtualMachineInfo"},
+            {"Microsoft.Azure.Batch.VMExtension", "PSVMExtension"},
             {"Microsoft.Azure.Batch.WindowsConfiguration", "PSWindowsConfiguration"},
             {"Microsoft.Azure.Batch.WindowsUserConfiguration", "PSWindowsUserConfiguration"},
         };
@@ -546,7 +556,7 @@ namespace PSModelGenerator
 
         private static string GetPropertyType(Type t)
         {
-            if (t.IsEnum || t == typeof(String) || t.IsPrimitive || t == typeof(DateTime) || t == typeof(TimeSpan))
+            if (t.IsEnum || t == typeof(String) || t.IsPrimitive || t == typeof(DateTime) || t == typeof(TimeSpan) || t == typeof(object))
             {
                 return t.FullName;
             }
@@ -597,7 +607,7 @@ namespace PSModelGenerator
             }
             else
             {
-                throw new InvalidOperationException(string.Format("Unexpected type. No mapping defined for type {0}", t.Name));
+                throw new InvalidOperationException(string.Format("Unexpected type. No mapping defined for type {0}", t.FullName));
             }
         }
     }
