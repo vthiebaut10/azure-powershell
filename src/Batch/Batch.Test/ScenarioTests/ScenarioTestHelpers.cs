@@ -209,7 +209,7 @@ namespace Microsoft.Azure.Commands.Batch.Test.ScenarioTests
 
             NewPoolParameters parameters = new NewPoolParameters(context, poolId)
             {
-                VirtualMachineSize = "small",
+                VirtualMachineSize = "standard_d1_v2",
                 CloudServiceConfiguration = paasConfiguration,
                 TargetDedicatedComputeNodes = targetDedicated,
                 TargetLowPriorityComputeNodes = targetLowPriority,
