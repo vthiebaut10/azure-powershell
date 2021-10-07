@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PsModuleName>Ssh</PsModuleName>
+    <OmitJsonPackage>true</OmitJsonPackage>
+    <AssemblyLoadContextEntryPoint>true</AssemblyLoadContextEntryPoint>
+  </PropertyGroup>
+
+  <Import Project="$(MSBuildThisFileDirectory)..\..\Az.props" />
+
+  <PropertyGroup>
+    <RootNamespace>$(LegacyAssemblyPrefix)$(PsModuleName)</RootNamespace>
+    <AssemblyName>$(LegacyAssemblyPrefix)$(PsModuleName).AlcWrapper</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Azure.Management.Compute" Version="29.0.0" />
+    <PackageReference Include="Microsoft.Azure.Management.Network" Version="19.14.0-preview" />
+    <PackageReference Include="Microsoft.Azure.Management.HybridCompute" Version="0.1.0-preview.2" />
+  </ItemGroup>
+
+</Project>
