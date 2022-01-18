@@ -13,7 +13,7 @@
   <ItemGroup>
     <ModuleAlcRefAssembly Include="Microsoft.Azure.Management.Compute" />
     <ModuleAlcRefAssembly Include="Microsoft.Azure.Management.Network" />
-	<ModuleAlcRefAssembly Include="Microsoft.Azure.Management.HybridCompute" />
+    <ModuleAlcRefAssembly Include="Microsoft.Azure.Management.HybridCompute" />
   </ItemGroup>
   
   <ItemGroup>
