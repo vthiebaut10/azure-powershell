@@ -18,6 +18,7 @@ using System.Management.Automation;
 using Microsoft.Azure.Commands.ResourceManager.Common.ArgumentCompleters;
 using Microsoft.Azure.Commands.Common.Exceptions;
 using System.Diagnostics;
+using System.Collections.Generic;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -27,7 +28,6 @@ namespace Microsoft.Azure.Commands.Ssh
     [Cmdlet("Enter", "AzureVM")]
     public class EnterAzVMCommand : SshBaseCmdlet
     {
-        // Define the aguments
         [Parameter(
             ParameterSetName = "NameAndRG",
             Mandatory = true,
@@ -40,6 +40,8 @@ namespace Microsoft.Azure.Commands.Ssh
             ParameterSetName = "NameAndRG",
             Mandatory = true,
             ValueFromPipeline = true)]
+        // Can I have this for both AzureVMs and Arc machines?? 
+        //[ResourceNameCompleter("Microsoft.Compute/virtualMachines", "ResourceGroupName")]
         [ValidateNotNullOrEmpty]
         public string Name { get; set; }
 
@@ -111,14 +113,16 @@ namespace Microsoft.Azure.Commands.Ssh
         public override void ExecuteCmdlet()
         {
             base.ExecuteCmdlet();
-
+            
             string cloudshell_envvar = "cloud-shell/1.0";
 
+            // Can I have this be checked by a dynamic parameter?
             if (DeleteCredentials && !cloudshell_envvar.Equals(Environment.GetEnvironmentVariable("AZUREPS_HOST_ENVIRONMENT")))
             {
                 throw new AzPSArgumentException("DeleteCredentials can't be used outside of CloudShell environment", nameof(DeleteCredentials));
             }
 
+            // Can I have this be checked by a dynamic parameter?
             if (CertificateFile != null && LocalUser == null)
             {
                 throw new AzPSArgumentException("CertificateFile can't be used when a Local User isn't provided", nameof(CertificateFile));
@@ -141,9 +145,8 @@ namespace Microsoft.Azure.Commands.Ssh
             string certFile = CertificateFile;
             string ip = Ip;
 
-            (bool deleteKeys, bool deleteCert, string proxyPath, string relayInfo) connectionInfo = DoOperation(Name, ResourceGroupName, ref ip, ref publicKey, ref privateKey, ref username, ref certFile, Port, UsePrivateIP, null, SSHProxyFolder, resourceType, azureUtils);
-            StartSSHConnection(connectionInfo.relayInfo, connectionInfo.proxyPath, ip, username, certFile, privateKey, publicKey, resourceType, connectionInfo.deleteKeys, connectionInfo.deleteCert);
-            //StartSSHConnection(null, null, ip, username, certFile, privateKey, publicKey, resourceType, false, false);
+            (bool deleteKeys, bool deleteCert, string proxyPath, string relayInfo) connectionInfo = DoOperation(Name, ResourceGroupName, ref ip, ref publicKey, ref privateKey, ref username, ref certFile, UsePrivateIP, null, SSHProxyFolder, resourceType, azureUtils);
+            StartSSHConnection(connectionInfo.relayInfo, connectionInfo.proxyPath, ip, username, certFile, privateKey, publicKey, resourceType, connectionInfo.deleteKeys, connectionInfo.deleteCert);           
         }
 
         private void StartSSHConnection(string relayInfo, string proxyPath, string ip, string username, string certFile, string privateKeyFile,
@@ -180,22 +183,18 @@ namespace Microsoft.Azure.Commands.Ssh
             else
             {
                 host = GetHost(username, ip);
-
-                privateKeyFile = @"C:\Users\vthiebaut\.ssh\az_ssh_config\myRG-vthiebaut-u20\id_rsa";
-                certFile = @"C:\Users\vthiebaut\.ssh\az_ssh_config\myRG-vthiebaut-u20\id_rsa.pub-aadcert.pub";
                 args = BuildArgs(certFile, privateKeyFile, Port);
             }
 
             if (certFile == null && privateKeyFile == null) { DeleteCredentials = false;  }
 
             //start cleanup
-            //(string logFile, string logArgs, Task cleanupTask, CancellationTokenSource tokenSource) cleanupVariables = 
-            //    StartCleanup(certFile, privateKeyFile, publicKeyFile, deleteKeys || DeleteCredentials, deleteCert || DeleteCredentials);
+            (string logFile, string logArgs, Task cleanupTask, CancellationTokenSource tokenSource) cleanupVariables = 
+                StartCleanup(certFile, privateKeyFile, publicKeyFile, deleteKeys || DeleteCredentials, deleteCert || DeleteCredentials);
 
-            //Console.WriteLine(Thread.CurrentThread.Name);
+            Console.WriteLine(Thread.CurrentThread.Name);
 
-            //string command = host + " " + cleanupVariables.logArgs + " " + args;
-            string command = host + " " + args + "-vvv";
+            string command = host + " " + cleanupVariables.logArgs + " " + args;
             sshProcess.StartInfo.Arguments = command;
 
             WriteDebug("Running SSH command: " + SSHClientPath + " " + command);
@@ -203,7 +202,7 @@ namespace Microsoft.Azure.Commands.Ssh
             sshProcess.Start();
             sshProcess.WaitForExit();
 
-            //TerminateCleanup(deleteKeys, deleteCert, cleanupVariables.cleanupTask, cleanupVariables.tokenSource, certFile, privateKeyFile, publicKeyFile, cleanupVariables.logFile);
+            TerminateCleanup(deleteKeys, deleteCert, cleanupVariables.cleanupTask, cleanupVariables.tokenSource, certFile, privateKeyFile, publicKeyFile, cleanupVariables.logFile);
         }
 
 
@@ -258,7 +257,7 @@ namespace Microsoft.Azure.Commands.Ssh
                     catch
                     {
                         if (token != null) { token.ThrowIfCancellationRequested(); }
-                        Thread.Sleep(5000);
+                        Thread.Sleep(500);
                     }
                 }
             }
@@ -295,11 +294,14 @@ namespace Microsoft.Azure.Commands.Ssh
                 //check if DoCleanup thread is still alive.
                 if (!cleanupTask.IsCompleted)
                 {
+                    Console.WriteLine("TerminateCleanup: Task not completed");
                     tokenSource.Cancel();
+                    Console.WriteLine("TerminateCleanup: Is Completed? " + cleanupTask.IsCompleted);
                     DateTime startTime = DateTime.UtcNow;
                     TimeSpan waitDuration = TimeSpan.FromSeconds(30);
                     while (!cleanupTask.IsCompleted && DateTime.UtcNow - startTime < waitDuration)
                     {
+                        Console.WriteLine("TerminateCleanup: Waiting for completion");
                         Thread.Sleep(1000);
                     }
                 }
@@ -335,17 +337,15 @@ namespace Microsoft.Azure.Commands.Ssh
 
         private string BuildArgs(string certFile, string privKeyFile, string port)
         {
-            string privateKeyArg = "";
-            string portArg = "";
-            string certArg = "";
+            List<string> argList = new List<string>();
 
-            if (privKeyFile != null) { privateKeyArg = "-i " + privKeyFile; }
+            if (privKeyFile != null) { argList.Add("-i " + privKeyFile); }
 
-            if (certFile != null) { certArg = "-o CertificateFile=" + certFile; }
+            if (certFile != null) { argList.Add("-o CertificateFile=\"" + certFile + "\""); }
 
-            if (port != null) { portArg = "-p " + port; }
+            if (port != null) { argList.Add("-p " + port); }
 
-            return privateKeyArg + " " + certArg + " " + portArg;
+            return string.Join(" ", argList.ToArray());
         }
 
         private string GetHost(string username, string target)
