@@ -25,6 +25,9 @@ using System.Diagnostics;
 using System.Net;
 using Microsoft.Azure.Commands.Common.Exceptions;
 using System.Collections.Generic;
+using Microsoft.Azure.Commands.Common.Authentication.Abstractions;
+using Microsoft.Azure.Commands.Common.Authentication.Factories;
+using Microsoft.Azure.Commands.Common.Authentication.Abstractions.Models;
 
 namespace Microsoft.Azure.Commands.Ssh
 {
@@ -151,8 +154,8 @@ namespace Microsoft.Azure.Commands.Ssh
         
         public string GetAndWriteCertificate(string pubKeyFile)
         {
-            IAccessToken certificate = GetAccessToken(pubKeyFile);
-            string token = certificate.AccessToken;
+            SshCredential certificate = GetAccessToken(pubKeyFile);
+            string token = certificate.Credential;
             string keyDir = Path.GetDirectoryName(pubKeyFile);
             string certpath = Path.Combine(keyDir, "id_rsa.pub-aadcert.pub");
             string cert_contents = "ssh-rsa-cert-v01@openssh.com " + token;
@@ -162,7 +165,7 @@ namespace Microsoft.Azure.Commands.Ssh
             return certpath;
         }
 
-        private IAccessToken GetAccessToken(string publicKeyFile)
+        private SshCredential GetAccessToken(string publicKeyFile)
         {
             string publicKeyText = File.ReadAllText(publicKeyFile);
             RSAParser parser = new RSAParser(publicKeyText);
@@ -172,7 +175,9 @@ namespace Microsoft.Azure.Commands.Ssh
                 Exponent = Base64UrlHelper.DecodeToBytes(parser.Exponent),
                 Modulus = Base64UrlHelper.DecodeToBytes(parser.Modulus)
             };
-            IAccessToken token = AzureSession.Instance.AuthenticationFactory.GetVmCredentials(context, parameters);
+            ISshCredentialFactory factory = new SshCredentialFactory();
+            AzureSession.Instance.TryGetComponent<ISshCredentialFactory>(nameof(ISshCredentialFactory), out factory);
+            var token = factory.GetSshCredential(context, parameters);
             return token;
         }
 
