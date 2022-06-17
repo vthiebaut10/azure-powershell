@@ -18,7 +18,21 @@
         - Additional information about change #1
 -->
 ## Upcoming Release
-* Updated the decsription of `Force` in `Invoke-AzAksRunCommand` [#17756]
+* Added parameter `CommandContextAttachmentZip` for `Invoke-AzAksRunCommand`. [#17454]
+* Added ManagedIdentity support for Aks[#15656].
+* Added property `PowerState` for the output of `Get-AzAksCluster`[#18271]
+* Updated the logic of `Set-AzAksCluster` for parameter `NodeImageOnly`.
+* Added parameter `NodeImageOnly` for `Update-AzAksNodePool`.
+
+## Version 4.1.0
+* Removed these aliases:
+  * `Get-AzAks`
+  * `New-AzAks`
+  * `Set-AzAks`
+  * `Remove-AzAks`
+
+## Version 3.1.3
+* Updated the description of `Force` in `Invoke-AzAksRunCommand` [#17756]
 * Fixed the issue that `identity` cannot be piped into `Set-AzAksCluster` [#17376]
 
 ## Version 3.1.2

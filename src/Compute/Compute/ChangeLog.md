@@ -20,6 +20,30 @@
 
 -->
 ## Upcoming Release
+* For `Add-AzVhd` upon upload failure using DirectUploadToManagedDisk parameter set, the SAS will be revoked and the created managed disk will be deleted.
+* An unresolved path can be passed in for '-LocalFilePath' for `Add-AzVhd`. The cmdlet with unresolve the path itself.
+* Added `-DataAccessAuthMode` parameter to Add-AzVhd DirectUploadToManagedDisk parameter set. 
+* Added `-EnabldUltraSSD` parameter to New-AzHostGroup.
+
+## Version 4.27.0
+* Edited `New-AzVm` cmdlet internal logic to use the `PlatformFaultDomain` value in the `PSVirtualMachine` object passed to it in the new virtual machine.
+* Added a new cmdlet named `Restart-AzHost` to restart dedicated hosts. 
+* Added `-DataAccessAuthMode` parameter to the following cmdlets:
+    - `New-AzDiskConfig`
+    - `New-AzDiskUpdateConfig`
+    - `New-AzSnapshotConfig`
+    - `New-AzSnapshotUpdateConfig`
+* Added `-Architecture` parameter to the following cmdlets:
+    - `New-AzDiskConfig`
+    - `New-AzDiskUpdateConfig`
+    - `New-AzSnapshotConfig`
+    - `New-AzSnapshotUpdateConfig`
+    - `New-AzGalleryImageDefinition`
+* Added `-InstanceView` parameter to `Get-AzRestorePoint`
+* Added parameter `-ScriptString` to `Invoke-AzvmRunCommand` and `Invoke-AzvmssRunCommand`
+* Added parameter `-ScaleInPolicyForceDeletion` to `Update-Azvmss`
+
+## Version 4.26.0
 * Added `-ImageReferenceId` parameter to following cmdlets: `New-AzVm`, `New-AzVmConfig`, `New-AzVmss`, `Set-AzVmssStorageProfile`
 * Added functionality for cross-tenant image reference for VM, VMSS, Managed Disk, and Gallery Image Version creation. 
 * `New-AzGallery` can take in `-Permission` parameter to set its sharingProfile property.
@@ -34,7 +58,7 @@
     - Updated progress output functions so that it works with VHD files with "&" character in its name.
     - Updated so that uploading dynamically sized VHD files are converted to fixed size during upload.
     - Fixed a bug in uploading a differencing disk.
-    - Automically delete converted/resized VHD files after upload.
+    - Automatically delete converted/resized VHD files after upload.
     - Fixed a bug that indicates `-ResourceGroupName` parameter as optional when it is actually mandatory.
 
 ## Version 4.25.0

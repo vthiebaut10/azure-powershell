@@ -821,7 +821,8 @@ namespace Microsoft.Azure.Commands.Compute
                         BillingProfile = this.VM.BillingProfile,
                         SecurityProfile = this.VM.SecurityProfile,
                         CapacityReservation = this.VM.CapacityReservation,
-                        UserData = this.VM.UserData
+                        UserData = this.VM.UserData,
+                        PlatformFaultDomain = this.VM.PlatformFaultDomain
                     };
 
                     Dictionary<string, List<string>> auxAuthHeader = null;
@@ -881,9 +882,9 @@ namespace Microsoft.Azure.Commands.Compute
                                 AutoUpgradeMinorVersion = true,
                             };
 
-                            typeof(CM.Resource).GetRuntimeProperty("Name")
+                            typeof(CM.ResourceWithOptionalLocation).GetRuntimeProperty("Name")
                                 .SetValue(extensionParameters, VirtualMachineBGInfoExtensionContext.ExtensionDefaultName);
-                            typeof(CM.Resource).GetRuntimeProperty("Type")
+                            typeof(CM.ResourceWithOptionalLocation).GetRuntimeProperty("Type")
                                 .SetValue(extensionParameters, VirtualMachineExtensionType);
 
                             var op2 = ComputeClient.ComputeManagementClient.VirtualMachineExtensions.CreateOrUpdateWithHttpMessagesAsync(

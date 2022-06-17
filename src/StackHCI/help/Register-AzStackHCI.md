@@ -8,7 +8,7 @@ schema: 2.0.0
 # Register-AzStackHCI
 
 ## SYNOPSIS
-Register-AzStackHCI creates a Microsoft.AzureStackHCI cloud resource representing the on-premise cluster and registers the on-premise cluster with Azure.
+Register-AzStackHCI creates a Microsoft.AzureStackHCI cloud resource representing the on-premises cluster and registers the on-premises cluster with Azure.
 
 ## SYNTAX
 
@@ -18,11 +18,11 @@ Register-AzStackHCI [-SubscriptionId] <String> [[-Region] <String>] [[-ResourceN
  [[-GraphAccessToken] <String>] [[-AccountId] <String>] [[-EnvironmentName] <String>]
  [[-ComputerName] <String>] [[-CertificateThumbprint] <String>] [-RepairRegistration]
  [-UseDeviceAuthentication] [-EnableAzureArcServer] [[-Credential] <PSCredential>] [-IsWAC]
- [<CommonParameters>]
+ [[-ArcServerResourceGroupName] <String>] [[-ArcSpnCredential] <PSCredential>] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
-Register-AzStackHCI creates a Microsoft.AzureStackHCI cloud resource representing the on-premise cluster and registers the on-premise cluster with Azure.
+Register-AzStackHCI creates a Microsoft.AzureStackHCI cloud resource representing the on-premises cluster and registers the on-premises cluster with Azure.
 
 ## EXAMPLES
 
@@ -56,7 +56,7 @@ Invoking from the management node.
 
 ### EXAMPLE 3
 ```powershell
-Register-AzStackHCI -SubscriptionId "12a0f531-56cb-4340-9501-257726d741fd" -ArmAccessToken etyer..ere= -GraphAccessToken acyee..rerrer -AccountId user1@corp1.com -Region westus -ResourceName DemoHCICluster3 -ResourceGroupName DemoHCIRG 
+Register-AzStackHCI -SubscriptionId "12a0f531-56cb-4340-9501-257726d741fd" -ArmAccessToken etyer..ere= -GraphAccessToken acyee..rerrer -AccountId user1@corp1.com -Region westus -ResourceName DemoHCICluster3 -ResourceGroupName DemoHCIRG
 ```
 
 ```output
@@ -100,6 +100,36 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
+### -ArcServerResourceGroupName
+Specifies the Arc Resource Group name. If not specified, service will generate a unique Resource Group name
+
+```yaml
+Type: System.String
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: 14
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -ArcSpnCredential
+Specifies the credentials to be used for onboarding ARC agent. If not specified, new set of credentials will be generated.
+
+```yaml
+Type: System.Management.Automation.PSCredential
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: 15
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
 ### -ArmAccessToken
 Specifies the ARM access token.
 Specifying this along with GraphAccessToken and AccountId will avoid Azure interactive logon.
@@ -132,7 +162,7 @@ Accept wildcard characters: False
 ```
 
 ### -ComputerName
-Specifies the cluster name or one of the cluster node in on-premise cluster that is being registered to Azure.
+Specifies the cluster name or one of the cluster node in on-premises cluster that is being registered to Azure.
 
 ```yaml
 Type: System.String
@@ -274,7 +304,7 @@ Accept wildcard characters: False
 
 ### -ResourceName
 Specifies the resource name of the resource created in Azure.
-If not specified, on-premise cluster name is used.
+If not specified, on-premises cluster name is used.
 
 ```yaml
 Type: System.String
