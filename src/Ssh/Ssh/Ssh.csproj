@@ -1,0 +1,56 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PsModuleName>Ssh</PsModuleName>
+	<!--<AlcWrapperAssemblyName>Compute.AlcWrapper</AlcWrapperAssemblyName>
+	<AlcDependencyAssemblyNames>Microsoft.Azure.Management.Compute;Microsoft.Azure.Management.Network;Microsoft.Azure.Management.HybridCompute</AlcDependencyAssemblyNames>-->
+  </PropertyGroup> 
+
+  <PropertyGroup>
+    <ModuleAlcEntryAssembly>Microsoft.Azure.Commands.Ssh.AlcWrapper</ModuleAlcEntryAssembly>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ModuleAlcRefAssembly Include="Microsoft.Azure.Management.Compute" />
+    <ModuleAlcRefAssembly Include="Microsoft.Azure.Management.Network" />
+    <ModuleAlcRefAssembly Include="Microsoft.Azure.Management.HybridCompute" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <ProjectReference Include="..\..\Accounts\Accounts\Accounts.csproj" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <ProjectReference Include="..\Ssh.AlcWrapper\Ssh.AlcWrapper.csproj">
+      <!-- AlcWrapper DLL (and its dependencies) won't be copied to the output folder -->
+      <!-- Because we are going to put them under ModuleAlcAssemblies/ -->
+      <!-- See https://docs.microsoft.com/en-us/dotnet/core/tutorials/creating-app-with-plugin-support -->
+      <Private>false</Private>
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </ProjectReference>
+  </ItemGroup>
+  
+  <ItemGroup>
+    <Reference Include="Azure.ResourceManager.HybridConnectivity">
+      <HintPath>..\..\..\..\azure-sdk-for-net\artifacts\bin\Azure.ResourceManager.HybridConnectivity\Release\netstandard2.0\Azure.ResourceManager.HybridConnectivity.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Properties\Resources.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <Import Project="$(MSBuildThisFileDirectory)..\..\Az.props" />
+
+</Project>
