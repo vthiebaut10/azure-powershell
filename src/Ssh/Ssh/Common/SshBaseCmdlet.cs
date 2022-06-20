@@ -16,6 +16,7 @@ using Microsoft.Azure.Commands.Common.Authentication.Models;
 using Microsoft.Azure.Commands.ResourceManager.Common;
 using Microsoft.WindowsAzure.Commands.Utilities.Common;
 using Microsoft.Azure.Commands.Common.Authentication;
+using Microsoft.Azure.Commands.Common.Authentication.ResourceManager;
 using System.IO;
 using System.Text;
 using System.Runtime.InteropServices;
@@ -37,7 +38,9 @@ namespace Microsoft.Azure.Commands.Ssh
         public const string clientProxyRelease = "release01-11-21";
         public const string clientProxyVersion = "1.3.017634";
 
-        private RMProfileClient profileClient;
+        public static readonly string [] supportedResourceTypes = {"Microsoft.Compute/virtualMachines", "Microsoft.HybridCompute/machines" };
+
+    private RMProfileClient profileClient;
     
         public RMProfileClient ProfileClient
         {

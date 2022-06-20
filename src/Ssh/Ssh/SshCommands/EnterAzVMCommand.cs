@@ -22,14 +22,20 @@ using System.Collections.Generic;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Azure.PowerShell.Cmdlets.Ssh.Common;
 
 namespace Microsoft.Azure.Commands.Ssh
 {
-    [Cmdlet("Enter", "AzureVM")]
+    [Cmdlet(
+        "Enter", 
+        ResourceManager.Common.AzureRMConstants.AzureRMPrefix + "VM",
+        DefaultParameterSetName="Interactive")]     
+    [OutputType(typeof(bool))]
+    [Alias("Enter-AzureVM")]
     public class EnterAzVMCommand : SshBaseCmdlet
     {
         [Parameter(
-            ParameterSetName = "NameAndRG",
+            ParameterSetName = "Interactive",
             Mandatory = true,
             ValueFromPipelineByPropertyName = true)]
         [ResourceGroupCompleter]
@@ -37,11 +43,11 @@ namespace Microsoft.Azure.Commands.Ssh
         public string ResourceGroupName { get; set; }
 
         [Parameter(
-            ParameterSetName = "NameAndRG",
+            ParameterSetName = "Interactive",
             Mandatory = true,
             ValueFromPipeline = true)]
-        // Can I have this for both AzureVMs and Arc machines?? 
-        //[ResourceNameCompleter("Microsoft.Compute/virtualMachines", "ResourceGroupName")]
+        // Have that list somewhere discoverable
+        [MyResourceNameCompleter(new string[] { "Microsoft.Compute/virtualMachines", "Microsoft.HybridCompute/machines" }, "ResourceGroupName")]
         [ValidateNotNullOrEmpty]
         public string Name { get; set; }
 
@@ -52,68 +58,69 @@ namespace Microsoft.Azure.Commands.Ssh
         [ValidateNotNullOrEmpty]
         public string Ip { get; set; }
 
-        [Parameter(ParameterSetName = "NameAndRG")]
+        [Parameter(ParameterSetName = "Interactive")]
         [Parameter(ParameterSetName = "IpAddress")]
         [ValidateNotNullOrEmpty]
         public string PublicKeyFile { get; set; }
 
-        [Parameter(ParameterSetName = "NameAndRG")]
+        [Parameter(ParameterSetName = "Interactive")]
         [Parameter(ParameterSetName = "IpAddress")]
         [ValidateNotNullOrEmpty]
         public string PrivateKeyFile { get; set; }
 
-        [Parameter(ParameterSetName = "NameAndRG")]
+        [Parameter(ParameterSetName = "Interactive")]
         [ValidateNotNullOrEmpty]
         public SwitchParameter UsePrivateIP { get; set; }
 
-        [Parameter(ParameterSetName = "NameAndRG")]
+        [Parameter(ParameterSetName = "Interactive")]
         [Parameter(ParameterSetName = "IpAddress")]
         [ValidateNotNullOrEmpty]
         public string LocalUser { get; set; }
 
         // IDEA: Only have this be an option when Local User is provided
-        [Parameter(ParameterSetName = "NameAndRG")]
+        [Parameter(ParameterSetName = "Interactive")]
         [Parameter(ParameterSetName = "IpAddress")]
         [ValidateNotNullOrEmpty]
         public string CertificateFile { get; set; }
 
-        [Parameter(ParameterSetName = "NameAndRG")]
+        [Parameter(ParameterSetName = "Interactive")]
         [Parameter(ParameterSetName = "IpAddress")]
         [ValidateNotNullOrEmpty]
         public string Port { get; set; }
 
-        [Parameter(ParameterSetName = "NameAndRG")]
+        [Parameter(ParameterSetName = "Interactive")]
         [Parameter(ParameterSetName = "IpAddress")]
         [ValidateNotNullOrEmpty]
         public string SSHClientPath { get; set; }
 
         // IDEA: Only have this be an option if the cloudshell env var exists
-        [Parameter(ParameterSetName = "NameAndRG")]
+        [Parameter(ParameterSetName = "Interactive")]
         [Parameter(ParameterSetName = "IpAddress")]
         [ValidateNotNullOrEmpty]
         public SwitchParameter DeleteCredentials { get; set; }
 
-        [Parameter(ParameterSetName = "NameAndRG")]
+        [Parameter(ParameterSetName = "Interactive")]
         [ValidateSet ("Microsoft.Compute", "Microsoft.HybridCompute")]
         [ValidateNotNullOrEmpty]
         public string ResourceType { get; set; }
 
         // IDEA: Is there a way to only have this be an option if the target is a arc machine?
-        [Parameter(ParameterSetName = "NameAndRG")]
+        [Parameter(ParameterSetName = "Interactive")]
         [ValidateNotNullOrEmpty]
         public string SSHProxyFolder { get; set; }
 
         // TODO: Found out how would be the best way to take these parameters
-        [Parameter(ParameterSetName = "NameAndRG")]
+        [Parameter(ParameterSetName = "Interactive")]
         [Parameter(ParameterSetName = "IpAddress")]
         [ValidateNotNullOrEmpty]
-        public string SSHArguments{ get; set; }
+        public string[] SSHArguments{ get; set; }
 
 
         public override void ExecuteCmdlet()
         {
             base.ExecuteCmdlet();
-            
+            Console.WriteLine("Hi");
+            /*
             string cloudshell_envvar = "cloud-shell/1.0";
 
             // Can I have this be checked by a dynamic parameter?
@@ -147,6 +154,7 @@ namespace Microsoft.Azure.Commands.Ssh
 
             (bool deleteKeys, bool deleteCert, string proxyPath, string relayInfo) connectionInfo = DoOperation(Name, ResourceGroupName, ref ip, ref publicKey, ref privateKey, ref username, ref certFile, UsePrivateIP, null, SSHProxyFolder, resourceType, azureUtils);
             StartSSHConnection(connectionInfo.relayInfo, connectionInfo.proxyPath, ip, username, certFile, privateKey, publicKey, resourceType, connectionInfo.deleteKeys, connectionInfo.deleteCert);           
+            */
         }
 
         private void StartSSHConnection(string relayInfo, string proxyPath, string ip, string username, string certFile, string privateKeyFile,
