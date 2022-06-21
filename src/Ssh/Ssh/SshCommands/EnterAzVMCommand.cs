@@ -24,16 +24,19 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Azure.PowerShell.Cmdlets.Ssh.Common;
 
+
 namespace Microsoft.Azure.Commands.Ssh
 {
     [Cmdlet(
-        "Enter", 
+        VerbsCommon.Enter,
         ResourceManager.Common.AzureRMConstants.AzureRMPrefix + "VM",
-        DefaultParameterSetName="Interactive")]     
+        DefaultParameterSetName = "Interactive")]
     [OutputType(typeof(bool))]
     [Alias("Enter-AzureVM")]
-    public class EnterAzVMCommand : SshBaseCmdlet
+    public class EnterAzVMCommand : SshBaseCmdlet, IDynamicParameters
     {
+        SshAzureUtils myAzureUtils;
+
         [Parameter(
             ParameterSetName = "Interactive",
             Mandatory = true,
@@ -47,88 +50,128 @@ namespace Microsoft.Azure.Commands.Ssh
             Mandatory = true,
             ValueFromPipeline = true)]
         // Have that list somewhere discoverable
-        [MyResourceNameCompleter(new string[] { "Microsoft.Compute/virtualMachines", "Microsoft.HybridCompute/machines" }, "ResourceGroupName")]
+        [SshResourceNameCompleter(new string[] { "Microsoft.Compute/virtualMachines", "Microsoft.HybridCompute/machines" }, "ResourceGroupName")]
         [ValidateNotNullOrEmpty]
         public string Name { get; set; }
 
         [Parameter(
             ParameterSetName = "IpAddress",
-            Mandatory = true,
-            ValueFromPipeline = true)]
+            Mandatory = true)]
         [ValidateNotNullOrEmpty]
         public string Ip { get; set; }
 
+        [Parameter(
+            ParameterSetName = "ResourceId",
+            Mandatory = true,
+            ValueFromPipeline = true)]
+        [ValidateNotNullOrEmpty]
+        [SshResourceIdCompleter(new string[] { "Microsoft.HybridCompute/machines", "Microsoft.Compute/virtualMachines" })]
+        public string ResourceId { get; set; }
+
+        /*
+         * Need some clarity on this. 
+         * Type returned by Get-AzVM is Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine
+         * I can't import that type unless.
+        [Parameter(
+            ParameterSetName = "InputObjectVM", 
+            Mandatory = true, 
+            ValueFromPipeline = true)]
+        [ValidateNotNullOrEmpty]
+        public VirtualMachine VMObject { get; set; }
+        */
+
         [Parameter(ParameterSetName = "Interactive")]
         [Parameter(ParameterSetName = "IpAddress")]
+        [Parameter(ParameterSetName = "ResourceId")]
         [ValidateNotNullOrEmpty]
         public string PublicKeyFile { get; set; }
 
         [Parameter(ParameterSetName = "Interactive")]
         [Parameter(ParameterSetName = "IpAddress")]
+        [Parameter(ParameterSetName = "ResourceId")]
         [ValidateNotNullOrEmpty]
         public string PrivateKeyFile { get; set; }
 
         [Parameter(ParameterSetName = "Interactive")]
+        [Parameter(ParameterSetName = "ResourceId")]
         [ValidateNotNullOrEmpty]
-        public SwitchParameter UsePrivateIP { get; set; }
+        public SwitchParameter UsePrivateIp { get; set; }
 
         [Parameter(ParameterSetName = "Interactive")]
         [Parameter(ParameterSetName = "IpAddress")]
+        [Parameter(ParameterSetName = "ResourceId")]
         [ValidateNotNullOrEmpty]
         public string LocalUser { get; set; }
 
         // IDEA: Only have this be an option when Local User is provided
-        [Parameter(ParameterSetName = "Interactive")]
+        /*[Parameter(ParameterSetName = "Interactive")]
         [Parameter(ParameterSetName = "IpAddress")]
+        [Parameter(ParameterSetName = "ResourceId")]
         [ValidateNotNullOrEmpty]
-        public string CertificateFile { get; set; }
+        public string CertificateFile { get; set; }*/
 
         [Parameter(ParameterSetName = "Interactive")]
         [Parameter(ParameterSetName = "IpAddress")]
+        [Parameter(ParameterSetName = "ResourceId")]
         [ValidateNotNullOrEmpty]
         public string Port { get; set; }
 
         [Parameter(ParameterSetName = "Interactive")]
         [Parameter(ParameterSetName = "IpAddress")]
+        [Parameter(ParameterSetName = "ResourceId")]
         [ValidateNotNullOrEmpty]
-        public string SSHClientPath { get; set; }
-
-        // IDEA: Only have this be an option if the cloudshell env var exists
-        [Parameter(ParameterSetName = "Interactive")]
-        [Parameter(ParameterSetName = "IpAddress")]
-        [ValidateNotNullOrEmpty]
-        public SwitchParameter DeleteCredentials { get; set; }
+        public string SshClientPath { get; set; }
 
         [Parameter(ParameterSetName = "Interactive")]
-        [ValidateSet ("Microsoft.Compute", "Microsoft.HybridCompute")]
+        [PSArgumentCompleter("Microsoft.Compute/virtualMachines", "Microsoft.HybridCompute/machines")]
         [ValidateNotNullOrEmpty]
         public string ResourceType { get; set; }
 
-        // IDEA: Is there a way to only have this be an option if the target is a arc machine?
         [Parameter(ParameterSetName = "Interactive")]
+        [Parameter(ParameterSetName = "ResourceId")]
         [ValidateNotNullOrEmpty]
-        public string SSHProxyFolder { get; set; }
+        public string SshProxyFolder { get; set; }
 
-        // TODO: Found out how would be the best way to take these parameters
         [Parameter(ParameterSetName = "Interactive")]
         [Parameter(ParameterSetName = "IpAddress")]
+        [Parameter(ParameterSetName = "ResourceId")]
         [ValidateNotNullOrEmpty]
-        public string[] SSHArguments{ get; set; }
+        public string[] SshArguments { get; set; }
 
+        // Is this the best way to handle this?
+        public new object GetDynamicParameters()
+        {
+            /*if (LocalUser != null)
+            {
+                certificateDynamicParameter = new SendCertParameter();
+                return certificateDynamicParameter;
+            }*/
+            
+            if (ResourceGroupName != null && Name != null)
+            {
+                if (myAzureUtils == null)
+                {
+                    myAzureUtils = new SshAzureUtils(DefaultProfile.DefaultContext);
+                }
+                if (myAzureUtils.DecideResourceType(Name, ResourceGroupName, Ip, ResourceType).Equals("Microsoft.HybridCompute"))
+                {
+                    azureArcParameters = new SendArcParameters();
+                    return azureArcParameters;
+                }
+               
+            }
+            return null;
+
+        }
+        //private SendCertParameter certificateDynamicParameter;
+        private SendArcParameters azureArcParameters;
+
+        
 
         public override void ExecuteCmdlet()
         {
             base.ExecuteCmdlet();
-            Console.WriteLine("Hi");
             /*
-            string cloudshell_envvar = "cloud-shell/1.0";
-
-            // Can I have this be checked by a dynamic parameter?
-            if (DeleteCredentials && !cloudshell_envvar.Equals(Environment.GetEnvironmentVariable("AZUREPS_HOST_ENVIRONMENT")))
-            {
-                throw new AzPSArgumentException("DeleteCredentials can't be used outside of CloudShell environment", nameof(DeleteCredentials));
-            }
-
             // Can I have this be checked by a dynamic parameter?
             if (CertificateFile != null && LocalUser == null)
             {
@@ -156,7 +199,7 @@ namespace Microsoft.Azure.Commands.Ssh
             StartSSHConnection(connectionInfo.relayInfo, connectionInfo.proxyPath, ip, username, certFile, privateKey, publicKey, resourceType, connectionInfo.deleteKeys, connectionInfo.deleteCert);           
             */
         }
-
+        /*
         private void StartSSHConnection(string relayInfo, string proxyPath, string ip, string username, string certFile, string privateKeyFile,
             string publicKeyFile, string resourceType, bool deleteKeys, bool deleteCert)
         {
@@ -194,20 +237,21 @@ namespace Microsoft.Azure.Commands.Ssh
                 args = BuildArgs(certFile, privateKeyFile, Port);
             }
 
-            if (certFile == null && privateKeyFile == null) { DeleteCredentials = false;  }
+            //if (certFile == null && privateKeyFile == null) { DeleteCredentials = false;  }
 
             //start cleanup
-            (string logFile, string logArgs, Task cleanupTask, CancellationTokenSource tokenSource) cleanupVariables = 
-                StartCleanup(certFile, privateKeyFile, publicKeyFile, deleteKeys || DeleteCredentials, deleteCert || DeleteCredentials);
+            //(string logFile, string logArgs, Task cleanupTask, CancellationTokenSource tokenSource) cleanupVariables = 
+            //    StartCleanup(certFile, privateKeyFile, publicKeyFile, deleteKeys || DeleteCredentials, deleteCert || DeleteCredentials);
 
             Console.WriteLine(Thread.CurrentThread.Name);
 
-            string command = host + " " + cleanupVariables.logArgs + " " + args;
+            //string command = host + " " + cleanupVariables.logArgs + " " + args;
             sshProcess.StartInfo.Arguments = command;
 
             WriteDebug("Running SSH command: " + SSHClientPath + " " + command);
 
             sshProcess.Start();
+            // Read the logs from stderr instead of launching a new task for cleanup?
             sshProcess.WaitForExit();
 
             TerminateCleanup(deleteKeys, deleteCert, cleanupVariables.cleanupTask, cleanupVariables.tokenSource, certFile, privateKeyFile, publicKeyFile, cleanupVariables.logFile);
@@ -362,5 +406,24 @@ namespace Microsoft.Azure.Commands.Ssh
         }
 
     }
+    */
+    }
+}
+
+public class SendCertParameter
+{
+    [Parameter(ParameterSetName = "Interactive")]
+    [Parameter(ParameterSetName = "IpAddress")]
+    [Parameter(ParameterSetName = "ResourceId")]
+    [ValidateNotNullOrEmpty]
+    public string Certificate { get; set; }
+}
+
+public class SendArcParameters
+{
+    [Parameter(ParameterSetName = "Interactive")]
+    [Parameter(ParameterSetName = "ResourceId")]
+    [ValidateNotNullOrEmpty]
+    public string SshProxy { get; set; }
 
 }
