@@ -19,9 +19,6 @@ using Microsoft.Azure.Commands.ResourceManager.Common.ArgumentCompleters;
 using Microsoft.Azure.Commands.Common.Exceptions;
 using System.Diagnostics;
 using System.Collections.Generic;
-using System.Net;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Azure.PowerShell.Cmdlets.Ssh.Common;
 
 
@@ -30,383 +27,292 @@ namespace Microsoft.Azure.Commands.Ssh
     [Cmdlet(
         VerbsCommon.Enter,
         ResourceManager.Common.AzureRMConstants.AzureRMPrefix + "VM",
-        DefaultParameterSetName = "Interactive")]
+        DefaultParameterSetName = InteractiveParameterSet)]
     [OutputType(typeof(bool))]
     [Alias("Enter-AzureVM")]
     public class EnterAzVMCommand : SshBaseCmdlet, IDynamicParameters
     {
-        SshAzureUtils myAzureUtils;
-
         [Parameter(
-            ParameterSetName = "Interactive",
+            ParameterSetName = InteractiveParameterSet,
             Mandatory = true,
             ValueFromPipelineByPropertyName = true)]
         [ResourceGroupCompleter]
         [ValidateNotNullOrEmpty]
-        public string ResourceGroupName { get; set; }
+        public override string ResourceGroupName { get; set; }
 
         [Parameter(
-            ParameterSetName = "Interactive",
+            ParameterSetName = InteractiveParameterSet,
             Mandatory = true,
-            ValueFromPipeline = true)]
-        // Have that list somewhere discoverable
+            ValueFromPipelineByPropertyName = true)]
         [SshResourceNameCompleter(new string[] { "Microsoft.Compute/virtualMachines", "Microsoft.HybridCompute/machines" }, "ResourceGroupName")]
         [ValidateNotNullOrEmpty]
-        public string Name { get; set; }
+        public override string Name { get; set; }
 
         [Parameter(
-            ParameterSetName = "IpAddress",
+            ParameterSetName = IpAddressParameterSet,
             Mandatory = true)]
         [ValidateNotNullOrEmpty]
-        public string Ip { get; set; }
+        public override string Ip { get; set; }
 
         [Parameter(
-            ParameterSetName = "ResourceId",
+            ParameterSetName = ResourceIdParameterSet,
             Mandatory = true,
             ValueFromPipeline = true)]
         [ValidateNotNullOrEmpty]
         [SshResourceIdCompleter(new string[] { "Microsoft.HybridCompute/machines", "Microsoft.Compute/virtualMachines" })]
-        public string ResourceId { get; set; }
+        public override string ResourceId { get; set; }
 
-        /*
-         * Need some clarity on this. 
-         * Type returned by Get-AzVM is Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine
-         * I can't import that type unless.
-        [Parameter(
-            ParameterSetName = "InputObjectVM", 
-            Mandatory = true, 
-            ValueFromPipeline = true)]
+        [Parameter(ParameterSetName = InteractiveParameterSet)]
+        [Parameter(ParameterSetName = IpAddressParameterSet)]
+        [Parameter(ParameterSetName = ResourceIdParameterSet)]
         [ValidateNotNullOrEmpty]
-        public VirtualMachine VMObject { get; set; }
-        */
+        public override string PublicKeyFile { get; set; }
 
-        [Parameter(ParameterSetName = "Interactive")]
-        [Parameter(ParameterSetName = "IpAddress")]
-        [Parameter(ParameterSetName = "ResourceId")]
+        [Parameter(ParameterSetName = InteractiveParameterSet)]
+        [Parameter(ParameterSetName = IpAddressParameterSet)]
+        [Parameter(ParameterSetName = ResourceIdParameterSet)]
         [ValidateNotNullOrEmpty]
-        public string PublicKeyFile { get; set; }
+        public override string PrivateKeyFile { get; set; }
 
-        [Parameter(ParameterSetName = "Interactive")]
-        [Parameter(ParameterSetName = "IpAddress")]
-        [Parameter(ParameterSetName = "ResourceId")]
+        [Parameter(ParameterSetName = InteractiveParameterSet)]
+        [Parameter(ParameterSetName = ResourceIdParameterSet)]
         [ValidateNotNullOrEmpty]
-        public string PrivateKeyFile { get; set; }
+        public override SwitchParameter UsePrivateIp { get; set; }
 
-        [Parameter(ParameterSetName = "Interactive")]
-        [Parameter(ParameterSetName = "ResourceId")]
+        [Parameter(ParameterSetName = InteractiveParameterSet)]
+        [Parameter(ParameterSetName = IpAddressParameterSet)]
+        [Parameter(ParameterSetName = ResourceIdParameterSet)]
         [ValidateNotNullOrEmpty]
-        public SwitchParameter UsePrivateIp { get; set; }
+        public override string LocalUser { get; set; }
 
-        [Parameter(ParameterSetName = "Interactive")]
-        [Parameter(ParameterSetName = "IpAddress")]
-        [Parameter(ParameterSetName = "ResourceId")]
+        [Parameter(ParameterSetName = InteractiveParameterSet)]
+        [Parameter(ParameterSetName = IpAddressParameterSet)]
+        [Parameter(ParameterSetName = ResourceIdParameterSet)]
         [ValidateNotNullOrEmpty]
-        public string LocalUser { get; set; }
+        public override string Port { get; set; }
 
-        // IDEA: Only have this be an option when Local User is provided
-        /*[Parameter(ParameterSetName = "Interactive")]
-        [Parameter(ParameterSetName = "IpAddress")]
-        [Parameter(ParameterSetName = "ResourceId")]
+        [Parameter(ParameterSetName = InteractiveParameterSet)]
+        [Parameter(ParameterSetName = IpAddressParameterSet)]
+        [Parameter(ParameterSetName = ResourceIdParameterSet)]
         [ValidateNotNullOrEmpty]
-        public string CertificateFile { get; set; }*/
+        public override string SshClientFolder { get; set; }
 
-        [Parameter(ParameterSetName = "Interactive")]
-        [Parameter(ParameterSetName = "IpAddress")]
-        [Parameter(ParameterSetName = "ResourceId")]
-        [ValidateNotNullOrEmpty]
-        public string Port { get; set; }
-
-        [Parameter(ParameterSetName = "Interactive")]
-        [Parameter(ParameterSetName = "IpAddress")]
-        [Parameter(ParameterSetName = "ResourceId")]
-        [ValidateNotNullOrEmpty]
-        public string SshClientPath { get; set; }
-
-        [Parameter(ParameterSetName = "Interactive")]
+        [Parameter(ParameterSetName = InteractiveParameterSet)]
         [PSArgumentCompleter("Microsoft.Compute/virtualMachines", "Microsoft.HybridCompute/machines")]
         [ValidateNotNullOrEmpty]
-        public string ResourceType { get; set; }
+        public override string ResourceType { get; set; }
 
-        [Parameter(ParameterSetName = "Interactive")]
-        [Parameter(ParameterSetName = "ResourceId")]
+        [Parameter(ParameterSetName = InteractiveParameterSet)]
+        [Parameter(ParameterSetName = ResourceIdParameterSet)]
         [ValidateNotNullOrEmpty]
-        public string SshProxyFolder { get; set; }
+        public override string SshProxyFolder { get; set; }
 
-        [Parameter(ParameterSetName = "Interactive")]
-        [Parameter(ParameterSetName = "IpAddress")]
-        [Parameter(ParameterSetName = "ResourceId")]
+        [Parameter(ParameterSetName = InteractiveParameterSet)]
+        [Parameter(ParameterSetName = IpAddressParameterSet)]
+        [Parameter(ParameterSetName = ResourceIdParameterSet)]
         [ValidateNotNullOrEmpty]
         public string[] SshArguments { get; set; }
 
-        // Is this the best way to handle this?
         public new object GetDynamicParameters()
         {
-            /*if (LocalUser != null)
+            if (LocalUser != null)
             {
                 certificateDynamicParameter = new SendCertParameter();
                 return certificateDynamicParameter;
-            }*/
-            
-            if (ResourceGroupName != null && Name != null)
-            {
-                if (myAzureUtils == null)
-                {
-                    myAzureUtils = new SshAzureUtils(DefaultProfile.DefaultContext);
-                }
-                if (myAzureUtils.DecideResourceType(Name, ResourceGroupName, Ip, ResourceType).Equals("Microsoft.HybridCompute"))
-                {
-                    azureArcParameters = new SendArcParameters();
-                    return azureArcParameters;
-                }
-               
             }
             return null;
-
         }
-        //private SendCertParameter certificateDynamicParameter;
-        private SendArcParameters azureArcParameters;
-
-        
+        private SendCertParameter certificateDynamicParameter;
 
         public override void ExecuteCmdlet()
         {
             base.ExecuteCmdlet();
-            /*
-            // Can I have this be checked by a dynamic parameter?
-            if (CertificateFile != null && LocalUser == null)
+
+            switch (ParameterSetName)
             {
-                throw new AzPSArgumentException("CertificateFile can't be used when a Local User isn't provided", nameof(CertificateFile));
+                case IpAddressParameterSet:
+                    ResourceType = "Microsoft.Compute/virtualMachines";
+                    break;
+                case ResourceIdParameterSet:
+                    Name = AzureUtils.GetNameFromId(ResourceId);
+                    ResourceGroupName = AzureUtils.GetResourceGroupNameFromId(ResourceId);
+                    ResourceType = AzureUtils.DecideResourceType(Name, ResourceGroupName, AzureUtils.GetResourceTypeFromId(ResourceId));
+                    break;
+                case InteractiveParameterSet:
+                    ResourceType = AzureUtils.DecideResourceType(Name, ResourceGroupName, ResourceType);
+                    break;
             }
 
-            // decide resource type
-            var azureUtils = new SshAzureUtils(DefaultProfile.DefaultContext);
-            var resourceType = azureUtils.DecideResourceType(Name, ResourceGroupName, Ip, ResourceType);
-
-            if (resourceType == "Microsoft.Compute" && SSHProxyFolder != null)
+            if (!IsArc() && !ParameterSetName.Equals(IpAddressParameterSet))
             {
-                WriteWarning("Target machine is not an Arc Server, -SSHProxyFolder argument will be ignored.");
+                GetVmIpAddress();
+            }
+            if (IsArc())
+            {
+                GetClientSideProxy();
+                //GetRelayInformation();
             }
 
-            // call the function that pepared the credentials and stuff
-
-            string publicKey = PublicKeyFile;
-            string privateKey = PrivateKeyFile;
-            string username = LocalUser;
-            string certFile = CertificateFile;
-            string ip = Ip;
-
-            (bool deleteKeys, bool deleteCert, string proxyPath, string relayInfo) connectionInfo = DoOperation(Name, ResourceGroupName, ref ip, ref publicKey, ref privateKey, ref username, ref certFile, UsePrivateIP, null, SSHProxyFolder, resourceType, azureUtils);
-            StartSSHConnection(connectionInfo.relayInfo, connectionInfo.proxyPath, ip, username, certFile, privateKey, publicKey, resourceType, connectionInfo.deleteKeys, connectionInfo.deleteCert);           
-            */
+            try
+            {
+                if (LocalUser == null)
+                {
+                    PrepareAadCredentials();
+                }
+                StartSSHConnection();
+            }
+            finally
+            {
+                DoCleanup();
+            }
         }
-        /*
-        private void StartSSHConnection(string relayInfo, string proxyPath, string ip, string username, string certFile, string privateKeyFile,
-            string publicKeyFile, string resourceType, bool deleteKeys, bool deleteCert)
+
+        private bool IsDebugMode()
         {
-            if (SSHClientPath == null)
-            {
-                SSHClientPath = GetSSHClientPath("ssh");
-            }
+            bool debug;
+            bool containsDebug = MyInvocation.BoundParameters.ContainsKey("Debug");
+            if (containsDebug)
+                debug = ((SwitchParameter)MyInvocation.BoundParameters["Debug"]).ToBool(); 
+            else
+                debug = (ActionPreference)GetVariableValue("DebugPreference") != ActionPreference.SilentlyContinue;
+            return debug;
+        }
 
-            string args = "";
-            // Figure out the args later
-
-            string host;
+        private void StartSSHConnection()
+        {                                 
+            string sshClient = GetSSHClientPath("ssh");
+            string command = GetHost() + " " + BuildArgs();
 
             Process sshProcess = new Process();
-            sshProcess.StartInfo.FileName = SSHClientPath;
+            WriteDebug("Running SSH command: " + sshClient + " " + command);
 
-            if (resourceType == "Microsoft.HybridCompute")
-            {
+            if (IsArc())
                 sshProcess.StartInfo.EnvironmentVariables["SSHPROXY_RELAY_INFO"] = relayInfo;
-                sshProcess.StartInfo.UseShellExecute = false;
+            sshProcess.StartInfo.FileName = sshClient;
+            sshProcess.StartInfo.Arguments = command;
+            if (deleteCert)
+                sshProcess.StartInfo.RedirectStandardError = true;
+            sshProcess.StartInfo.UseShellExecute = false;
+            sshProcess.Start();
+
+            List<string> errorMessages = new List<string>();
+            bool writeLogs = false;
+            if (deleteCert)
+            {
+                var stderr = sshProcess.StandardError;
                 
+                if (SshArguments != null &&
+                    (Array.Exists(SshArguments, x => x == "-v") ||
+                    Array.Exists(SshArguments, x => x == "-vv") ||
+                    Array.Exists(SshArguments, x => x == "-vvv")) ||
+                    IsDebugMode())
+                {
+                    writeLogs = true;
+                }
+
+                string line;
+                while ((line = stderr.ReadLine()) != null)
+                {
+                    if (writeLogs)
+                    {
+                        Console.WriteLine(line);
+                    } 
+                    if (line.Contains("debug1: Entering interactive session."))
+                    {
+                        DoCleanup();
+                    }
+                    if (!line.Contains("debug1: ") &&
+                        !line.Contains("debug2: ") &&
+                        !line.Contains("debug3: "))
+                    {
+                        errorMessages.Add(line);
+                    }
+                }
+            }
+            
+            sshProcess.WaitForExit();
+           
+            if (sshProcess.ExitCode != 0 && !writeLogs && deleteCert)
+            {
+                foreach (string errorLine in errorMessages)
+                {
+                    Console.WriteLine(errorLine);
+                }
+            }
+        }
+
+        private string GetHost()
+        {
+            if (ResourceType == "Microsoft.HybridCompute/machines" && LocalUser != null && Name != null) 
+            {
+                return LocalUser + "@" + Name;
+            } else if (ResourceType == "Microsoft.Compute/virtualMachines" && LocalUser != null && Ip != null)
+            {
+                return LocalUser + "@" + Ip;
+            }
+            throw new AzPSInvalidOperationException("Unable to determine target host.");
+        }
+
+
+        private string BuildArgs()
+        {
+            List<string> argList = new List<string>();
+
+            if (PrivateKeyFile != null) { argList.Add("-i \"" + PrivateKeyFile + "\""); }
+
+            if (aadCertificate != null) { argList.Add("-o CertificateFile=\"" + aadCertificate + "\""); }
+
+            if (ResourceType == "Microsoft.HybridCompute/machines")
+            {
                 string pcommand = "ProxyCommand=\"" + proxyPath + "\"";
-                
                 if (Port != null)
                 {
                     pcommand = "ProxyCommand=\"" + proxyPath + " -p " + Port + "\"";
                 }
-
-                args = args + "-o " + pcommand + " " + BuildArgs(certFile, privateKeyFile, null);
-                host = GetHost(username, Name);
+                argList.Add("-o " + pcommand);
+            } else if (Port != null) 
+            { 
+                argList.Add("-p " + Port);
             }
-            else
+            
+            if (deleteCert || IsDebugMode())
             {
-                host = GetHost(username, ip);
-                args = BuildArgs(certFile, privateKeyFile, Port);
-            }
-
-            //if (certFile == null && privateKeyFile == null) { DeleteCredentials = false;  }
-
-            //start cleanup
-            //(string logFile, string logArgs, Task cleanupTask, CancellationTokenSource tokenSource) cleanupVariables = 
-            //    StartCleanup(certFile, privateKeyFile, publicKeyFile, deleteKeys || DeleteCredentials, deleteCert || DeleteCredentials);
-
-            Console.WriteLine(Thread.CurrentThread.Name);
-
-            //string command = host + " " + cleanupVariables.logArgs + " " + args;
-            sshProcess.StartInfo.Arguments = command;
-
-            WriteDebug("Running SSH command: " + SSHClientPath + " " + command);
-
-            sshProcess.Start();
-            // Read the logs from stderr instead of launching a new task for cleanup?
-            sshProcess.WaitForExit();
-
-            TerminateCleanup(deleteKeys, deleteCert, cleanupVariables.cleanupTask, cleanupVariables.tokenSource, certFile, privateKeyFile, publicKeyFile, cleanupVariables.logFile);
-        }
-
-
-        private (string, string, Task, CancellationTokenSource) StartCleanup (string certFile, string privKeyFile, string pubKeyFile, bool deleteKeys, bool deleteCert)
-        {
-            string logFile = null;
-            string args = "";
-            Task cleanupTask = null;
-            CancellationTokenSource tokenSource = null;
-
-            if (deleteKeys || DeleteCredentials || deleteCert)
-            {
-                //check if -vvv or -E is preset in the args list. We are not dealing with that now
-                string logDir = null;
-                if (certFile != null) { logDir = Path.GetDirectoryName(certFile);  }
-                else { logDir = Path.GetDirectoryName(privKeyFile); }
-
-                string logFileName = "ssh_client_log_" + Process.GetCurrentProcess().Id;
-                logFile = Path.Combine(logDir, logFileName);
-
-                args = "-E " + logFile + " -v";
-
-                tokenSource = new CancellationTokenSource();
-                CancellationToken token = tokenSource.Token;
-
-                cleanupTask = new Task(() => DoCleanup(deleteKeys, deleteCert, certFile, privKeyFile, pubKeyFile, token, logFile, true));
-                cleanupTask.Start();
-            }
-
-            return (logFile, args, cleanupTask, tokenSource);
-        }
-
-        private void DoCleanup(bool deleteKeys, bool deleteCert, string certFile, string privateKey, string publicKey, CancellationToken token, string logFile = null, bool wait = false)
-        {
-            Console.WriteLine(Thread.CurrentThread.Name);
-
-            if (logFile != null)
-            {
-                bool match = false;
-                DateTime startTime = DateTime.UtcNow;
-                TimeSpan waitDuration = TimeSpan.FromMinutes(2);
-
-                while (!match && DateTime.UtcNow - startTime < waitDuration)
+                if (SshArguments == null ||
+                   (!Array.Exists(SshArguments, x => x == "-v") &&
+                    !Array.Exists(SshArguments, x => x == "-vv") &&
+                    !Array.Exists(SshArguments, x => x == "-vvv")))
                 {
-                    if (token != null) { token.ThrowIfCancellationRequested();  }
-                    Thread.Sleep(1000);
-                    try
-                    {
-                        string log = File.ReadAllText(logFile);
-                        match = log.Contains("debug1: Authentication succeeded");
-                    }
-                    catch
-                    {
-                        if (token != null) { token.ThrowIfCancellationRequested(); }
-                        Thread.Sleep(500);
-                    }
+                    argList.Add("-vvv");
                 }
             }
-            else if (wait)
+            
+            if (SshArguments != null)
             {
-                DateTime startTime = DateTime.UtcNow;
-                TimeSpan waitDuration = TimeSpan.FromMinutes(2);
-                while (DateTime.UtcNow - startTime < waitDuration)
-                {
-                    if (token != null) { token.ThrowIfCancellationRequested(); }
-                    Thread.Sleep(2000);
-                }
+                Array.ForEach(SshArguments, item => argList.Add(item));
             }
-
-            if (deleteKeys && privateKey != null)
-            {
-                DeleteFile(privateKey, "Couldn't delete Private Key file " + privateKey + ".");
-            }
-            if (deleteKeys && publicKey != null)
-            {
-                DeleteFile(publicKey, "Couldn't delete Public Key file " + publicKey + ".");
-            }
-            if (deleteCert && certFile != null)
-            {
-                DeleteFile(certFile, "Couldn't delete Certificate File " + certFile + ".");
-            }
-
-        }
-
-        private void TerminateCleanup(bool deleteKeys, bool deleteCert, Task cleanupTask, CancellationTokenSource tokenSource, string certFile, string privateKey, string publicKey, string logFile)
-        {
-            if (deleteKeys || deleteCert)
-            {
-                //check if DoCleanup thread is still alive.
-                if (!cleanupTask.IsCompleted)
-                {
-                    Console.WriteLine("TerminateCleanup: Task not completed");
-                    tokenSource.Cancel();
-                    Console.WriteLine("TerminateCleanup: Is Completed? " + cleanupTask.IsCompleted);
-                    DateTime startTime = DateTime.UtcNow;
-                    TimeSpan waitDuration = TimeSpan.FromSeconds(30);
-                    while (!cleanupTask.IsCompleted && DateTime.UtcNow - startTime < waitDuration)
-                    {
-                        Console.WriteLine("TerminateCleanup: Waiting for completion");
-                        Thread.Sleep(1000);
-                    }
-                }
-
-                // Make sure all credentials are deleted
-                if (deleteKeys && privateKey != null)
-                {
-                    DeleteFile(privateKey, "Couldn't delete Private Key file " + privateKey + ".");
-                }
-                if (deleteKeys && publicKey != null)
-                {
-                    DeleteFile(publicKey, "Couldn't delete Public Key file " + publicKey + ".");
-                }
-                if (deleteCert && certFile != null)
-                {
-                    DeleteFile(certFile, "Couldn't delete Certificate File " + certFile + ".");
-                }
-
-                //delete log file
-                if (logFile != null)
-                {
-                    DeleteFile(logFile, "Couldn't delete Log File " + logFile + ".");
-                }
-                //delete credentials folder
-                if (deleteKeys)
-                {
-                    // This is only true if keys were generated, so they must be in a temp folder.
-                    string tempDir = Path.GetDirectoryName(certFile);
-                    DeleteDirectory(tempDir, "Couldn't delete temporary directory " + tempDir + ".");
-                }
-            }
-        }
-
-        private string BuildArgs(string certFile, string privKeyFile, string port)
-        {
-            List<string> argList = new List<string>();
-
-            if (privKeyFile != null) { argList.Add("-i " + privKeyFile); }
-
-            if (certFile != null) { argList.Add("-o CertificateFile=\"" + certFile + "\""); }
-
-            if (port != null) { argList.Add("-p " + port); }
 
             return string.Join(" ", argList.ToArray());
         }
 
-        private string GetHost(string username, string target)
+        private void DoCleanup()
         {
-            return username + "@" + target;
+            if (deleteKeys && PrivateKeyFile != null)
+            {
+                DeleteFile(PrivateKeyFile, "Couldn't delete Private Key file " + PrivateKeyFile + ".");
+            }
+            if (deleteKeys && PublicKeyFile != null)
+            {
+                DeleteFile(PublicKeyFile, "Couldn't delete Public Key file " + PublicKeyFile + ".");
+            }
+            if (deleteCert && aadCertificate != null)
+            {
+                DeleteFile(aadCertificate, "Couldn't delete Certificate File " + aadCertificate + ".");
+            }
+            if (deleteKeys)
+            {
+                DeleteDirectory(Directory.GetParent(aadCertificate).ToString());
+            }
         }
-
-    }
-    */
     }
 }
 
@@ -416,14 +322,5 @@ public class SendCertParameter
     [Parameter(ParameterSetName = "IpAddress")]
     [Parameter(ParameterSetName = "ResourceId")]
     [ValidateNotNullOrEmpty]
-    public string Certificate { get; set; }
-}
-
-public class SendArcParameters
-{
-    [Parameter(ParameterSetName = "Interactive")]
-    [Parameter(ParameterSetName = "ResourceId")]
-    [ValidateNotNullOrEmpty]
-    public string SshProxy { get; set; }
-
+    public string CertificateFile { get; set; }
 }

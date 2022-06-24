@@ -14,6 +14,7 @@
 
 using Microsoft.Azure.Commands.Common.Authentication.Models;
 using Microsoft.Azure.Commands.ResourceManager.Common;
+using System.Management.Automation;
 using Microsoft.WindowsAzure.Commands.Utilities.Common;
 using Microsoft.Azure.Commands.Common.Authentication;
 using Microsoft.Azure.Commands.Common.Authentication.ResourceManager;
@@ -38,10 +39,52 @@ namespace Microsoft.Azure.Commands.Ssh
         public const string clientProxyRelease = "release01-11-21";
         public const string clientProxyVersion = "1.3.017634";
 
+        public const string InteractiveParameterSet = "Interactive";
+        public const string ResourceIdParameterSet = "ResourceId";
+        public const string IpAddressParameterSet = "IpAddress";
+
+        public enum SupportedResourceTypes { ComputeVirtualMachine, ArcEnabledServer };
+
         public static readonly string [] supportedResourceTypes = {"Microsoft.Compute/virtualMachines", "Microsoft.HybridCompute/machines" };
 
-    private RMProfileClient profileClient;
-    
+        private RMProfileClient profileClient;
+        private SshAzureUtils azureUtils;
+        
+        protected bool deleteKeys;
+        protected bool deleteCert;
+        protected string proxyPath;
+        protected string relayInfo;
+        protected string aadCertificate;
+
+        /* Common Parameters */
+        public abstract string Name { get; set; }
+        public abstract string ResourceGroupName { get; set; }
+        public abstract string Ip { get; set; }
+        public abstract string ResourceId { get; set; }
+        public abstract string LocalUser { get; set; }
+        public abstract string PublicKeyFile { get; set; }
+        public abstract string PrivateKeyFile { get; set; }
+        public abstract SwitchParameter UsePrivateIp { get; set; }
+        public abstract string Port { get; set; }
+        public abstract string SshClientFolder { get; set; }
+        public abstract string ResourceType { get; set; }
+        public abstract string SshProxyFolder { get; set; }
+
+        public SshAzureUtils AzureUtils
+        {
+            get
+            {
+                if (azureUtils == null)
+                {
+                    azureUtils = new SshAzureUtils(DefaultProfile.DefaultContext);
+                }
+
+                return azureUtils;
+            }
+
+            set { azureUtils = value; }
+        }
+
         public RMProfileClient ProfileClient
         {
             get
@@ -56,110 +99,29 @@ namespace Microsoft.Azure.Commands.Ssh
             set { profileClient = value; }
         }
 
-        
-        public (bool, bool, string, string) DoOperation(string vmName, string rgName, ref string ip, ref string pubKeyFile, ref string privKeyFile, ref string username,
-            ref string certFile, bool usePrivIP, string credFolder, string proxyFolder, string resourceType, SshAzureUtils myUtils)
+        public  void GetVmIpAddress()
         {
-            bool deleteKeys = false;
-            bool deleteCert = false;
-            string proxyPath = null;
-            string relayInfo = null;
-            int certLifetimeInMinutes = 3600;
-
-            if (resourceType == "Microsoft.Compute" && ip == null)
+            Ip = AzureUtils.GetFirstPublicIp(Name, ResourceGroupName);
+            if (Ip == null)
             {
-                ip = myUtils.GetFirstPublicIp(vmName, rgName);
-                if (ip == null)
-                {
-                    string errorMessage = "Couldn't determine the IP address of " + vmName + "in the Resource Group " + rgName;
-                    throw new AzPSResourceNotFoundCloudException(errorMessage);
-                }
+                string errorMessage = "Couldn't determine the IP address of " + Name + "in the Resource Group " + ResourceGroupName;
+                throw new AzPSResourceNotFoundCloudException(errorMessage);
             }
-            
-            if (username == null)
-            {
-                deleteCert = true;
-                deleteKeys = CheckOrCreatePublicAndPrivateKeyFile(ref pubKeyFile, ref privKeyFile, credFolder);
-                certFile = GetAndWriteCertificate(pubKeyFile);
-                username = GetSSHCertPrincipals(certFile)[0];
-
-                if (resourceType == "Microsoft.HybridCompute")
-                {
-                    certLifetimeInMinutes = GetCertLifetime(certFile);
-                }
-            }
-
-            if (resourceType == "Microsoft.HybridCompute")
-            {
-                proxyPath = GetClientSideProxy(proxyFolder);
-                relayInfo = GetRelayInformation(certLifetimeInMinutes);
-            }
-
-            (bool, bool, string, string) t1 = (deleteKeys, deleteCert, proxyPath, relayInfo);
-            return t1;
         }
 
-        private string GetRelayInformation(int certLifetimeInMinutes)
+        public void PrepareAadCredentials(string credentialFolder = null)
         {
-            return "";
+            deleteCert = true;
+            deleteKeys = CheckOrCreatePublicAndPrivateKeyFile(credentialFolder);
+            aadCertificate = GetAndWriteCertificate(PublicKeyFile);
+            LocalUser = GetSSHCertPrincipals(aadCertificate)[0];
         }
 
-        private int GetCertLifetime (string certFile)
+        private string GetAndWriteCertificate(string publicKeyFile)
         {
-            return 3600;
-        }
-
-        public string[] GetSSHCertInfo(string certFile)
-        {
-            string sshKeygenPath = GetSSHClientPath("ssh-keygen");
-            string args = "-L -f " + certFile;
-            WriteDebug("Runnung ssh-keygen command: " + sshKeygenPath + " " + args);
-            Process keygen = new Process();
-            keygen.StartInfo.FileName = sshKeygenPath;
-            keygen.StartInfo.Arguments = args;
-            keygen.StartInfo.UseShellExecute = false;
-            keygen.StartInfo.RedirectStandardOutput = true;
-            keygen.Start();
-            string output = keygen.StandardOutput.ReadToEnd();
-            keygen.WaitForExit();
-
-            string[] certInfo = output.Split('\n');
-
-            return certInfo;
-        }
-
-        public List<string> GetSSHCertPrincipals(string certFile)
-        {
-            string[] certInfo = GetSSHCertInfo(certFile);
-            List<string> principals = new List<string>();
-            bool inPrincipals = false;
-
-            foreach (string line in certInfo)
-            {
-                if (line.Contains(":"))
-                {
-                    inPrincipals = false;
-                }
-                if (line.Contains("Principals: "))
-                {
-                    inPrincipals = true;
-                    continue;
-                }
-                if (inPrincipals)
-                {
-                    principals.Add(line.Trim());
-                }
-            }
-
-            return principals;
-
-        }
-        
-        public string GetAndWriteCertificate(string pubKeyFile)
-        {
-            SshCredential certificate = GetAccessToken(pubKeyFile);
+            SshCredential certificate = GetAccessToken(publicKeyFile);
             string token = certificate.Credential;
-            string keyDir = Path.GetDirectoryName(pubKeyFile);
+            string keyDir = Path.GetDirectoryName(publicKeyFile);
             string certpath = Path.Combine(keyDir, "id_rsa.pub-aadcert.pub");
             string cert_contents = "ssh-rsa-cert-v01@openssh.com " + token;
 
@@ -184,13 +146,175 @@ namespace Microsoft.Azure.Commands.Ssh
             return token;
         }
 
-        public string GetClientSideProxy(string proxyFolder)
+        private List<string> GetSSHCertPrincipals(string certFile)
+        {
+            string[] certInfo = GetSSHCertInfo(certFile);
+            List<string> principals = new List<string>();
+            bool inPrincipals = false;
+
+            foreach (string line in certInfo)
+            {
+                if (line.Contains(":"))
+                {
+                    inPrincipals = false;
+                }
+                if (line.Contains("Principals: "))
+                {
+                    inPrincipals = true;
+                    continue;
+                }
+                if (inPrincipals)
+                {
+                    principals.Add(line.Trim());
+                }
+            }
+            return principals;
+        }
+
+        private string[] GetSSHCertInfo(string certFile)
+        {
+            string sshKeygenPath = GetSSHClientPath("ssh-keygen");
+            string args = "-L -f " + certFile;
+            WriteDebug("Runnung ssh-keygen command: " + sshKeygenPath + " " + args);
+            Process keygen = new Process();
+            keygen.StartInfo.FileName = sshKeygenPath;
+            keygen.StartInfo.Arguments = args;
+            keygen.StartInfo.UseShellExecute = false;
+            keygen.StartInfo.RedirectStandardOutput = true;
+            keygen.Start();
+            string output = keygen.StandardOutput.ReadToEnd();
+            keygen.WaitForExit();
+
+            string[] certInfo = output.Split('\n');
+
+            return certInfo;
+        }
+
+        private bool CheckOrCreatePublicAndPrivateKeyFile(string credentialFolder=null)
+        {
+            bool deleteKeys = false;
+            if (PublicKeyFile == null && PrivateKeyFile == null)
+            {
+                deleteKeys = true;
+                if (credentialFolder == null)
+                {
+                    credentialFolder = CreateTempFolder();
+                }
+                else
+                {
+                    Directory.CreateDirectory(credentialFolder);
+                }
+
+                PublicKeyFile = Path.Combine(credentialFolder, "id_rsa.pub");
+                PrivateKeyFile = Path.Combine(credentialFolder, "id_rsa");
+                CreateSSHKeyfile(PrivateKeyFile);
+            }
+
+            if (PublicKeyFile == null)
+            {
+                if (PrivateKeyFile != null)
+                {
+                    PublicKeyFile = PrivateKeyFile + ".pub";
+                }
+                else
+                {
+                    throw new AzPSArgumentNullException("Public key file not specified.", "PublicKeyFile");
+                }
+            }
+
+            if (!File.Exists(PublicKeyFile))
+            {
+                throw new AzPSFileNotFoundException("Public key file not found", PublicKeyFile);
+            }
+
+            // The private key is not required as the user may be using a keypair stored in ssh-agent
+            if (PrivateKeyFile != null && !File.Exists(PrivateKeyFile))
+            {
+                throw new AzPSFileNotFoundException("Private key file not found", PrivateKeyFile);
+            }
+
+            return deleteKeys;
+        }
+
+        private void CreateSSHKeyfile(string privateKeyFile)
+        {
+            string args = "-f " + privateKeyFile + " -t rsa -q -N \"\"";
+            Process keygen = Process.Start(GetSSHClientPath("ssh-keygen"), args);
+            keygen.WaitForExit();
+        }
+
+        protected string GetSSHClientPath(string sshCommand)
+        {
+            string sshPath;
+            string commandExecutable = sshCommand;
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                commandExecutable += ".exe";
+            }
+            if (SshClientFolder != null)
+            {
+                sshPath = Path.Combine(SshClientFolder, commandExecutable);
+                if (File.Exists(sshPath))
+                {
+                    WriteDebug("Attempting to run " + commandExecutable + " from path " + sshPath + ".");
+                    return sshPath;
+                }
+                WriteWarning("Could not find " + sshPath + ". " + "Attempting to get pre-installed OpenSSH bits.");
+            }
+
+            sshPath = commandExecutable;
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                string systemDir = Environment.SystemDirectory;
+                sshPath = Path.Combine(systemDir, "openSSH", commandExecutable);
+                if (!File.Exists(sshPath))
+                {
+                    throw new AzPSFileNotFoundException("Couldn't find " + sshPath, sshPath);
+                }
+            }
+            return sshPath;
+        }
+
+        public string CreateTempFolder()
+        {
+            //mix in some numbers as well?
+            //worry about the length of the name?
+            //should we be using get random filename
+            string prefix = "aadsshcert";
+            var dirnameBuilder = new StringBuilder();
+            Random random = new Random();
+            string dirname;
+            do
+            {
+                dirnameBuilder.Clear();
+                dirnameBuilder.Append(prefix);
+                for (int i = 0; i < 8; i++)
+                {
+                    char randChar = (char)random.Next('a', 'a' + 26);
+                    dirnameBuilder.Append(randChar);
+                }
+                dirname = Path.Combine(Path.GetTempPath(), dirnameBuilder.ToString());
+            } while (Directory.Exists(dirname));
+
+            Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), dirnameBuilder.ToString()));
+
+            return dirname;
+        }
+
+        private string GetRelayInformation(int certLifetimeInMinutes)
+        {
+            return "";
+        }
+
+        public string GetClientSideProxy()
         {
             string proxyPath = null;
             string oldProxyPattern = null;
             string requestUrl = null;
 
-            GetProxyUrlAndFilename(ref proxyPath, ref oldProxyPattern, ref requestUrl, proxyFolder);
+            GetProxyUrlAndFilename(ref proxyPath, ref oldProxyPattern, ref requestUrl);
 
             if (!File.Exists(proxyPath))
             {
@@ -231,7 +355,7 @@ namespace Microsoft.Azure.Commands.Ssh
             return proxyPath;
         }
 
-        private void GetProxyUrlAndFilename(ref string proxyPath, ref string oldProxyPattern, ref string requestUrl, string proxyFolder)
+        private void GetProxyUrlAndFilename(ref string proxyPath, ref string oldProxyPattern, ref string requestUrl)
         {
             string os;
             string architecture;
@@ -274,121 +398,15 @@ namespace Microsoft.Azure.Commands.Ssh
                 installPath = installPath + ".exe";
                 oldProxyPattern = oldProxyPattern + ".exe";
             }
-            if (proxyFolder == null)
+            if (SshProxyFolder == null)
             {
                 proxyPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), Path.Combine(".clientsshproxy", installPath));
             }
             else
             {
-                proxyPath = Path.Combine(proxyFolder, installPath);
+                proxyPath = Path.Combine(SshProxyFolder, installPath);
             }
 
-        }
-
-        public void CreateSSHKeyfile(string privateKeyFile)
-        {
-            string args = "-f " + privateKeyFile + " -t rsa -q -N \"\"";
-            Process keygen = Process.Start(GetSSHClientPath("ssh-keygen"), args);
-            keygen.WaitForExit();
-        }
-      
-        public string CreateTempFolder()
-        {
-            //mix in some numbers as well?
-            //worry about the length of the name?
-            //should we be using get random filename
-            string prefix = "aadsshcert";
-            var dirnameBuilder = new StringBuilder();
-            Random random = new Random();
-            string dirname;
-            do
-            {
-                dirnameBuilder.Clear();
-                dirnameBuilder.Append(prefix);
-                for (int i = 0; i < 8; i++)
-                {
-                    char randChar = (char)random.Next('a', 'a' + 26);
-                    dirnameBuilder.Append(randChar);
-                }
-                dirname = Path.Combine(Path.GetTempPath(), dirnameBuilder.ToString());
-            } while (Directory.Exists(dirname));
-
-            Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), dirnameBuilder.ToString()));
-
-            return dirname;
-
-        }
-        
-        private bool CheckOrCreatePublicAndPrivateKeyFile(ref string publicKeyFile, ref string privateKeyFile, string credentialsFolder)
-        {
-            // It seems like there is something wrong with
-            bool deleteKeys = false;
-
-            if (publicKeyFile == null && privateKeyFile == null)
-            {
-                // We only want to delete generated keys.
-                deleteKeys = true;
-
-                if (credentialsFolder == null)
-                {
-                    // create a temp folder
-                    // see about this radom name.
-                    credentialsFolder = CreateTempFolder();
-                }
-                else
-                {
-                    Directory.CreateDirectory(credentialsFolder);
-                }
-
-                publicKeyFile = Path.Combine(credentialsFolder, "id_rsa.pub");
-                privateKeyFile = Path.Combine(credentialsFolder, "id_rsa");
-                CreateSSHKeyfile(privateKeyFile);
-
-            }
-
-            if (publicKeyFile == null)
-            {
-                if (privateKeyFile != null)
-                {
-                    publicKeyFile = privateKeyFile + ".pub";
-                }
-                else
-                {
-                    throw new AzPSArgumentNullException("Public key file not specified.", "PublicKeyFile");
-                }
-            }
-
-            if (!File.Exists(publicKeyFile))
-            {
-                throw new AzPSFileNotFoundException("Public key file not found", publicKeyFile);
-            }
-
-            // The private key is not required as the user may be using a keypair stored in ssh-agent
-            if (privateKeyFile != null && !File.Exists(privateKeyFile))
-            {
-                throw new AzPSFileNotFoundException("Private key file not found", privateKeyFile);
-            }
-
-            return deleteKeys;
-        }
-
-        public string GetSSHClientPath(string sshCommand)
-        {
-            string sshPath = sshCommand;
-
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                string commandExecutable = sshCommand + ".exe";
-                string systemDir = Environment.SystemDirectory;
-                sshPath = Path.Combine(systemDir, "openSSH", commandExecutable);
-                if (!File.Exists(sshPath))
-                {
-                    //Raise Exception
-                    throw new AzPSFileNotFoundException("Couldn't find " + sshPath, sshPath);
-                }
-
-            }
-            return sshPath;
         }
 
         public void DeleteFile(string fileName, string warningMessage = null)
@@ -435,6 +453,14 @@ namespace Microsoft.Azure.Commands.Ssh
             }
         }
 
+        public bool IsArc()
+        {
+            if (ResourceType.Equals("Microsoft.HybridCompute/machines"))
+            {
+                return true;
+            }
+            return false;
+        }
     }
 
 }

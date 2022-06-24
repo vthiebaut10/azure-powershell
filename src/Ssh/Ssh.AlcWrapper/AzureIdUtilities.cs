@@ -26,6 +26,8 @@ namespace Microsoft.Azure.Commands.Ssh
 
         private static Regex subscriptionRegex = new Regex("/subscriptions/(?<subscriptionId>.*?)/", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
+        private static Regex resourceProviderRegex = new Regex("/providers/(?<resourceProvider>.*/*?)/", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
         public static string GetResourceName(string id)
         {
             return id.Split('/').Last();
@@ -65,6 +67,17 @@ namespace Microsoft.Azure.Commands.Ssh
             }
 
             return match.Groups["subscriptionId"].Value;
+        }
+
+        public static string GetResourceType(string id)
+        {
+            var match = resourceProviderRegex.Match(id);
+            if (match.Success != true)
+            {
+                throw new ArgumentException("Invalid format of the resource identifier.", "id");
+            }
+
+            return match.Groups["resourceProvider"].Value;
         }
     }
 }

@@ -19,6 +19,7 @@ using Microsoft.Azure.Management.HybridCompute;
 using Microsoft.Azure.Management.HybridCompute.Models;
 using System.IO;
 using System;
+using System.Text.RegularExpressions;
 using Microsoft.Azure.Commands.Common.Authentication.Models;
 using Microsoft.Azure.Commands.ResourceManager.Common;
 using Microsoft.Azure.Commands.Common.Authentication;
@@ -191,39 +192,47 @@ namespace Microsoft.Azure.Commands.Ssh
                     break;
                 }
             }
-
             return publicIpAddress;
         }
 
+        public string GetNameFromId(string ResourceId)
+        {
+            return AzureIdUtilities.GetResourceName(ResourceId);
+        }
 
-        public string DecideResourceType(string vmName, string rgName, string Ip, string ResourceType)
+        public string GetResourceGroupNameFromId(string ResourceId)
+        {
+            return AzureIdUtilities.GetResourceGroup(ResourceId);
+        }
+           
+        public string GetResourceTypeFromId(string ResourceId)
+        {
+            return AzureIdUtilities.GetResourceType(ResourceId);
+        }
+
+        public string DecideResourceType(string vmName, string rgName, string ResourceType)
         {
             RestException computeException;
             RestException hybridException;
 
-            if (Ip != null)
-            {
-                return "Microsoft.Compute";
-            }
-
             if (ResourceType != null)
             {
-                if (ResourceType.Equals("Microsoft.HybridCompute"))
+                if (ResourceType.Equals("Microsoft.HybridCompute/machines"))
                 {
                     if (CheckIfArcServer(vmName, rgName, out hybridException))
                     {
-                        return "Microsoft.HybridCompute";
+                        return "Microsoft.HybridCompute/machines";
                     }
                     else if (hybridException != null)
                     {
                          throw hybridException;
                     }
                 }
-                else if (ResourceType.Equals("Microsoft.Compute"))
+                else if (ResourceType.Equals("Microsoft.Compute/virtualMachines"))
                 {
                     if (CheckIfAzureVM(vmName, rgName, out computeException))
                     {
-                        return "Microsoft.Compute";
+                        return "Microsoft.Compute/virtualMachines";
                     }
                     else if (computeException != null)
                     {
@@ -241,16 +250,16 @@ namespace Microsoft.Azure.Commands.Ssh
                     throw new AzPSCloudException("A arc server and a azure vm with the same name. Please provide -ResourceType argument.");
                 }
                 else if (!isArc && !isAzVM)
-                {
+                { 
                     throw new AzPSCloudException("Unable to determine the target machine type as azure vm or arc server.");
                 }
                 else if (isArc)
                 {
-                    return "Microsoft.HybridCompute";
+                    return "Microsoft.HybridCompute/machines";
                 }
                 else
                 {
-                    return "Microsoft.Compute";
+                    return "Microsoft.Compute/virtualMachines";
                 }
             }
             return null;
