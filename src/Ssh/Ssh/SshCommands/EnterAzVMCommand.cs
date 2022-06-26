@@ -122,12 +122,12 @@ namespace Microsoft.Azure.Commands.Ssh
             }
             return null;
         }
-        private SendCertParameter certificateDynamicParameter;
+        //private SendCertParameter certificateDynamicParameter;
 
         public override void ExecuteCmdlet()
         {
             base.ExecuteCmdlet();
-
+            
             switch (ParameterSetName)
             {
                 case IpAddressParameterSet:
@@ -260,7 +260,7 @@ namespace Microsoft.Azure.Commands.Ssh
 
             if (PrivateKeyFile != null) { argList.Add("-i \"" + PrivateKeyFile + "\""); }
 
-            if (aadCertificate != null) { argList.Add("-o CertificateFile=\"" + aadCertificate + "\""); }
+            if (CertificateFile != null) { argList.Add("-o CertificateFile=\"" + CertificateFile + "\""); }
 
             if (ResourceType == "Microsoft.HybridCompute/machines")
             {
@@ -304,23 +304,14 @@ namespace Microsoft.Azure.Commands.Ssh
             {
                 DeleteFile(PublicKeyFile, "Couldn't delete Public Key file " + PublicKeyFile + ".");
             }
-            if (deleteCert && aadCertificate != null)
+            if (deleteCert && CertificateFile != null)
             {
-                DeleteFile(aadCertificate, "Couldn't delete Certificate File " + aadCertificate + ".");
+                DeleteFile(CertificateFile, "Couldn't delete Certificate File " + CertificateFile + ".");
             }
             if (deleteKeys)
             {
-                DeleteDirectory(Directory.GetParent(aadCertificate).ToString());
+                DeleteDirectory(Directory.GetParent(CertificateFile).ToString());
             }
         }
     }
-}
-
-public class SendCertParameter
-{
-    [Parameter(ParameterSetName = "Interactive")]
-    [Parameter(ParameterSetName = "IpAddress")]
-    [Parameter(ParameterSetName = "ResourceId")]
-    [ValidateNotNullOrEmpty]
-    public string CertificateFile { get; set; }
 }

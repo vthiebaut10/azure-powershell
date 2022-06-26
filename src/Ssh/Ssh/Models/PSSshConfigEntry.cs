@@ -39,79 +39,64 @@ namespace Microsoft.Azure.Commands.Ssh.Models
             get
             {
                 StringBuilder builder = new StringBuilder();
-                builder.AppendLine(string.Format("Host {0}", this.Host));
+                builder.AppendLine($"Host {this.Host}");
                 if (!HostName.Equals(Host))
                 {
-                    builder.AppendLine(string.Format("\tHostName {0}", this.HostName));
+                    builder.AppendLine($"\tHostName {this.HostName}");
                 }
                 builder.AppendLine(string.Format("\tUser {0}", this.User));
-                if (CertificateFile != null)
-                {
-                    builder.AppendLine(string.Format("\tCertificateFile {0}", this.CertificateFile));
-                }
-                if (IdentityFile != null)
-                {
-                    builder.Append(string.Format("\tIdentityFile {0}", this.IdentityFile));
-                }
-                if (Port != null)
-                {
-                    builder.Append(string.Format("\tPort {0}", this.Port));
-                }
-                if (ProxyCommand != null)
-                {
-                    builder.Append(string.Format("\tProxyCommand {0}", this.ProxyCommand));
-                }
+                this.AppendKeyValuePairToStringBuilderIfNotValueNull("CertificateFile", this.CertificateFile, builder);
+                this.AppendKeyValuePairToStringBuilderIfNotValueNull("IdentityFile", this.IdentityFile, builder);
+                this.AppendKeyValuePairToStringBuilderIfNotValueNull("Port", this.Port, builder);
+                this.AppendKeyValuePairToStringBuilderIfNotValueNull("ProxyCommand", this.ProxyCommand, builder);
 
-                if (ResourceType.Equals("Microsoft.Compute") && !HostName.Equals(Host))
+                if (ResourceType.Equals("Microsoft.Compute/virtualMachines") && !HostName.Equals(Host))
                 {
                     builder.AppendLine(string.Format("\nHost {0}", this.HostName));
                     builder.AppendLine(string.Format("\tUser {0}", this.User));
-                        
-                    if (CertificateFile != null)
-                    {
-                        builder.AppendLine(string.Format("\tCertificateFile {0}", this.CertificateFile));
-                    }
-                    if (IdentityFile != null)
-                    {
-                        builder.Append(string.Format("\tIdentityFile {0}", this.IdentityFile));
-                    }
-                    if (Port != null)
-                    {
-                        builder.Append(string.Format("\tPort {0}", this.Port));
-                    }
-
+                    this.AppendKeyValuePairToStringBuilderIfNotValueNull("CertificateFile", this.CertificateFile, builder);
+                    this.AppendKeyValuePairToStringBuilderIfNotValueNull("IdentityFile", this.IdentityFile, builder);
+                    this.AppendKeyValuePairToStringBuilderIfNotValueNull("Port", this.Port, builder);
                 }
 
                 return builder.ToString();
             }
         }
 
-        // This case is for Azure VMs that were passed in with name and resource group
-        public PSSshConfigEntry(string ip, string vmName, string rgName, string proxyPath, string relayInfoPath, 
-            string username, string certFile, string privateKey, string port, string resourceType)
+        // This is pretty horrible, but it does help me avoid passing a bunch of parameters.
+        // Rethink this.
+        public PSSshConfigEntry(CreateAzVMSshConfig SshCmdlet)
         {
-            if (rgName != null && vmName != null) { Host = rgName + "-" + vmName; }
-            else { Host = ip; }
+            if (SshCmdlet.ResourceGroupName != null && SshCmdlet.Name != null) { Host = SshCmdlet.ResourceGroupName + "-" + SshCmdlet.Name; }
+            else { Host = SshCmdlet.Ip; }
 
-            if (resourceType.Equals("Microsoft.HybridCompute")) 
+            if (SshCmdlet.IsArc()) 
             { 
-                HostName = vmName;
-                ProxyCommand = "\"" + proxyPath + "\" -r \"" + relayInfoPath + "\"";
-                if (port != null)
+                HostName = SshCmdlet.Name;
+                ProxyCommand = "\"" + SshCmdlet.proxyPath + "\" -r \"" + SshCmdlet.RelayInfoPath + "\"";
+                if (SshCmdlet.Port != null)
                 {
-                    ProxyCommand = ProxyCommand + " -p " + port;
+                    ProxyCommand = ProxyCommand + " -p " + SshCmdlet.Port;
                 }
             }
             else
             {
-                Port = port;
-                if (ip != null) { HostName = ip; }
+                Port = SshCmdlet.Port;
+                if (SshCmdlet.Ip != null) { HostName = SshCmdlet.Ip; }
                 else { HostName = "*";  }
             }
-            User = username;
-            CertificateFile = certFile;
-            IdentityFile = privateKey;
-            ResourceType = resourceType;
+            User = SshCmdlet.LocalUser;
+            CertificateFile = SshCmdlet.CertificateFile;
+            IdentityFile = SshCmdlet.PrivateKeyFile;
+            ResourceType = SshCmdlet.ResourceType;
+        }
+
+        private void AppendKeyValuePairToStringBuilderIfNotValueNull(string key, string value, StringBuilder builder)
+        {
+            if (value != null)
+            {
+                builder.AppendLine($"\t{key} {value}");
+            }
         }
     }
 }

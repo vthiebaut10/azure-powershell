@@ -18,6 +18,7 @@ using System.Management.Automation;
 using Microsoft.WindowsAzure.Commands.Utilities.Common;
 using Microsoft.Azure.Commands.Common.Authentication;
 using Microsoft.Azure.Commands.Common.Authentication.ResourceManager;
+using System.Text.RegularExpressions;
 using System.IO;
 using System.Text;
 using System.Runtime.InteropServices;
@@ -46,15 +47,27 @@ namespace Microsoft.Azure.Commands.Ssh
         public enum SupportedResourceTypes { ComputeVirtualMachine, ArcEnabledServer };
 
         public static readonly string [] supportedResourceTypes = {"Microsoft.Compute/virtualMachines", "Microsoft.HybridCompute/machines" };
-
-        private RMProfileClient profileClient;
-        private SshAzureUtils azureUtils;
         
         protected bool deleteKeys;
         protected bool deleteCert;
-        protected string proxyPath;
-        protected string relayInfo;
-        protected string aadCertificate;
+        
+        public string proxyPath;
+        public string relayInfo;
+        public string aadCertificate;
+        protected SendCertParameter certificateDynamicParameter;
+        
+        public string CertificateFile
+        {
+            get
+            {
+                if (certificateDynamicParameter != null)
+                { 
+                    return certificateDynamicParameter.CertificateFile;
+                }
+                return aadCertificate;
+            }
+            set { aadCertificate = value; }
+        }
 
         /* Common Parameters */
         public abstract string Name { get; set; }
@@ -69,6 +82,9 @@ namespace Microsoft.Azure.Commands.Ssh
         public abstract string SshClientFolder { get; set; }
         public abstract string ResourceType { get; set; }
         public abstract string SshProxyFolder { get; set; }
+
+        private RMProfileClient profileClient;
+        private SshAzureUtils azureUtils;
 
         public SshAzureUtils AzureUtils
         {
@@ -113,7 +129,7 @@ namespace Microsoft.Azure.Commands.Ssh
         {
             deleteCert = true;
             deleteKeys = CheckOrCreatePublicAndPrivateKeyFile(credentialFolder);
-            aadCertificate = GetAndWriteCertificate(PublicKeyFile);
+            CertificateFile = GetAndWriteCertificate(PublicKeyFile);
             LocalUser = GetSSHCertPrincipals(aadCertificate)[0];
         }
 
@@ -190,6 +206,29 @@ namespace Microsoft.Azure.Commands.Ssh
             return certInfo;
         }
 
+        protected string GetCertificateExpirationTimes()
+        {
+            string[] certificateInfo = GetSSHCertInfo(this.CertificateFile);
+            foreach (string line in certificateInfo)
+            {
+                if (line.Contains("Valid:"))
+                {
+                    var validity = Regex.Split(line.Trim().Replace("Valid: from ", ""), " to ");
+                    DateTime endDate = DateTime.Parse(validity[1]);
+                    return endDate.ToString();
+                }
+                
+            }
+            return null;
+        }
+
+        protected void WriteInColor(string toWrite, ConsoleColor color)
+        {
+            Console.ForegroundColor = color;
+            Console.WriteLine(toWrite, Console.ForegroundColor);
+            Console.ResetColor();
+        }
+
         private bool CheckOrCreatePublicAndPrivateKeyFile(string credentialFolder=null)
         {
             bool deleteKeys = false;
@@ -202,6 +241,7 @@ namespace Microsoft.Azure.Commands.Ssh
                 }
                 else
                 {
+                    //create all directories in the path unless they already exist
                     Directory.CreateDirectory(credentialFolder);
                 }
 
@@ -463,4 +503,13 @@ namespace Microsoft.Azure.Commands.Ssh
         }
     }
 
+}
+
+public class SendCertParameter
+{
+    [Parameter(ParameterSetName = "Interactive")]
+    [Parameter(ParameterSetName = "IpAddress")]
+    [Parameter(ParameterSetName = "ResourceId")]
+    [ValidateNotNullOrEmpty]
+    public string CertificateFile { get; set; }
 }
