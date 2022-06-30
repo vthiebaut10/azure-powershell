@@ -20,6 +20,7 @@ using Microsoft.Azure.Commands.Common.Exceptions;
 using System.Diagnostics;
 using System.Collections.Generic;
 using Microsoft.Azure.PowerShell.Cmdlets.Ssh.Common;
+using System.Text.RegularExpressions;
 
 
 namespace Microsoft.Azure.Commands.Ssh
@@ -29,7 +30,7 @@ namespace Microsoft.Azure.Commands.Ssh
         ResourceManager.Common.AzureRMConstants.AzureRMPrefix + "VM",
         DefaultParameterSetName = InteractiveParameterSet)]
     [OutputType(typeof(bool))]
-    [Alias("Enter-AzureVM")]
+    [Alias("Enter-AzureVM", "Enter-ArcServer")]
     public class EnterAzVMCommand : SshBaseCmdlet, IDynamicParameters
     {
         [Parameter(
@@ -107,11 +108,14 @@ namespace Microsoft.Azure.Commands.Ssh
         [ValidateNotNullOrEmpty]
         public override string SshProxyFolder { get; set; }
 
-        [Parameter(ParameterSetName = InteractiveParameterSet)]
-        [Parameter(ParameterSetName = IpAddressParameterSet)]
-        [Parameter(ParameterSetName = ResourceIdParameterSet)]
+        [Parameter(ParameterSetName = InteractiveParameterSet, ValueFromRemainingArguments = true)]
+        [Parameter(ParameterSetName = IpAddressParameterSet, ValueFromRemainingArguments = true)]
+        [Parameter(ParameterSetName = ResourceIdParameterSet, ValueFromRemainingArguments = true)]
         [ValidateNotNullOrEmpty]
         public string[] SshArguments { get; set; }
+
+        [Parameter(Mandatory = false)]
+        public SwitchParameter PassThru { get; set; }
 
         public new object GetDynamicParameters()
         {
@@ -127,6 +131,11 @@ namespace Microsoft.Azure.Commands.Ssh
         public override void ExecuteCmdlet()
         {
             base.ExecuteCmdlet();
+
+            foreach (string a in SshArguments)
+            {
+                Console.WriteLine(a);
+            }
             
             switch (ParameterSetName)
             {
@@ -149,8 +158,8 @@ namespace Microsoft.Azure.Commands.Ssh
             }
             if (IsArc())
             {
-                GetClientSideProxy();
-                //GetRelayInformation();
+                proxyPath = GetClientSideProxy();
+                GetRelayInformation();
             }
 
             try
@@ -159,7 +168,12 @@ namespace Microsoft.Azure.Commands.Ssh
                 {
                     PrepareAadCredentials();
                 }
-                StartSSHConnection();
+                int sshStatus = StartSSHConnection();
+
+                if (this.PassThru.IsPresent)
+                {
+                    WriteObject(sshStatus == 0);
+                }
             }
             finally
             {
@@ -178,8 +192,10 @@ namespace Microsoft.Azure.Commands.Ssh
             return debug;
         }
 
-        private void StartSSHConnection()
+        private int StartSSHConnection()
         {                                 
+            
+            
             string sshClient = GetSSHClientPath("ssh");
             string command = GetHost() + " " + BuildArgs();
 
@@ -192,6 +208,7 @@ namespace Microsoft.Azure.Commands.Ssh
             sshProcess.StartInfo.Arguments = command;
             if (deleteCert)
                 sshProcess.StartInfo.RedirectStandardError = true;
+                //sshProcess.StartInfo.RedirectStandardOutput = true;
             sshProcess.StartInfo.UseShellExecute = false;
             sshProcess.Start();
 
@@ -229,9 +246,9 @@ namespace Microsoft.Azure.Commands.Ssh
                     }
                 }
             }
-            
+
             sshProcess.WaitForExit();
-           
+
             if (sshProcess.ExitCode != 0 && !writeLogs && deleteCert)
             {
                 foreach (string errorLine in errorMessages)
@@ -239,6 +256,7 @@ namespace Microsoft.Azure.Commands.Ssh
                     Console.WriteLine(errorLine);
                 }
             }
+            return sshProcess.ExitCode;
         }
 
         private string GetHost()
@@ -262,7 +280,7 @@ namespace Microsoft.Azure.Commands.Ssh
 
             if (CertificateFile != null) { argList.Add("-o CertificateFile=\"" + CertificateFile + "\""); }
 
-            if (ResourceType == "Microsoft.HybridCompute/machines")
+            if (IsArc())
             {
                 string pcommand = "ProxyCommand=\"" + proxyPath + "\"";
                 if (Port != null)

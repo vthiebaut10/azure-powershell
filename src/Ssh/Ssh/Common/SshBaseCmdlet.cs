@@ -31,6 +31,12 @@ using System.Collections.Generic;
 using Microsoft.Azure.Commands.Common.Authentication.Abstractions;
 using Microsoft.Azure.Commands.Common.Authentication.Factories;
 using Microsoft.Azure.Commands.Common.Authentication.Abstractions.Models;
+using Microsoft.Azure.PowerShell.Cmdlets.Ssh.Common;
+using Newtonsoft.Json;
+using Azure.ResourceManager.HybridConnectivity.Models;
+using Microsoft.Rest.Azure;
+using Newtonsoft.Json.Linq;
+
 
 namespace Microsoft.Azure.Commands.Ssh
 {
@@ -55,6 +61,7 @@ namespace Microsoft.Azure.Commands.Ssh
         public string relayInfo;
         public string aadCertificate;
         protected SendCertParameter certificateDynamicParameter;
+        protected DateTime relayInfoExpiration;
         
         public string CertificateFile
         {
@@ -113,6 +120,33 @@ namespace Microsoft.Azure.Commands.Ssh
             }
 
             set { profileClient = value; }
+        }
+
+        public void GetRelayInformation()
+        {
+            Track2HybridConnectivityManagementClient myclient = new Track2HybridConnectivityManagementClient(AzureSession.Instance.ClientFactory,
+                                                                                                             DefaultProfile.DefaultContext);
+            TargetResourceEndpointAccess responseValue = null;
+            switch (ParameterSetName)
+            {
+                case InteractiveParameterSet:
+                    responseValue = myclient.GetRelayInformationString(ResourceGroupName, Name, "default");
+                    break;
+                case ResourceIdParameterSet:
+                    responseValue = myclient.GetRelayInformationString(ResourceId, "default");
+                    break;
+            }
+
+            if (responseValue != null)
+            {
+                relayInfoExpiration = TimeZoneInfo.ConvertTime(DateTimeOffset.FromUnixTimeSeconds((long)responseValue.ExpiresOn), TimeZoneInfo.Local).DateTime;
+                relayInfo = Convert.ToBase64String(Encoding.UTF8.GetBytes("{\"relay\":" + JsonConvert.SerializeObject(responseValue) + "}"));
+            } 
+            else
+            {
+                throw new AzPSInvalidOperationException("Unable to get Relay Information.");
+            }
+
         }
 
         public  void GetVmIpAddress()
@@ -311,7 +345,7 @@ namespace Microsoft.Azure.Commands.Ssh
                 sshPath = Path.Combine(systemDir, "openSSH", commandExecutable);
                 if (!File.Exists(sshPath))
                 {
-                    throw new AzPSFileNotFoundException("Couldn't find " + sshPath, sshPath);
+                    throw new AzPSFileNotFoundException("Couldn't find " + sshPath + " .\nMake sure OpenSSH is installed correctly: https://docs.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse . Or use -SshClientFolder to provide folder path with ssh executables. ", sshPath);
                 }
             }
             return sshPath;
@@ -341,11 +375,6 @@ namespace Microsoft.Azure.Commands.Ssh
             Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), dirnameBuilder.ToString()));
 
             return dirname;
-        }
-
-        private string GetRelayInformation(int certLifetimeInMinutes)
-        {
-            return "";
         }
 
         public string GetClientSideProxy()

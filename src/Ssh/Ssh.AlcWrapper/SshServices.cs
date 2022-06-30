@@ -17,17 +17,12 @@ using Microsoft.Azure.Management.Compute.Models;
 using Microsoft.Azure.Management.Network;
 using Microsoft.Azure.Management.HybridCompute;
 using Microsoft.Azure.Management.HybridCompute.Models;
-using System.IO;
-using System;
-using System.Text.RegularExpressions;
-using Microsoft.Azure.Commands.Common.Authentication.Models;
-using Microsoft.Azure.Commands.ResourceManager.Common;
 using Microsoft.Azure.Commands.Common.Authentication;
 using Microsoft.Azure.Commands.Common.Authentication.Abstractions;
 using Microsoft.Azure.Commands.Common.Exceptions;
 using System.Linq;
 using Microsoft.Rest.Azure;
-using Microsoft.Rest;
+using Newtonsoft.Json.Linq;
 
 namespace Microsoft.Azure.Commands.Ssh
 {
@@ -212,38 +207,38 @@ namespace Microsoft.Azure.Commands.Ssh
 
         public string DecideResourceType(string vmName, string rgName, string ResourceType)
         {
-            RestException computeException;
-            RestException hybridException;
+            string hybridExceptionMessage;
+            string computeExceptionMessage;
 
             if (ResourceType != null)
             {
                 if (ResourceType.Equals("Microsoft.HybridCompute/machines"))
                 {
-                    if (CheckIfArcServer(vmName, rgName, out hybridException))
+                    if (CheckIfArcServer(vmName, rgName, out hybridExceptionMessage))
                     {
                         return "Microsoft.HybridCompute/machines";
                     }
-                    else if (hybridException != null)
+                    else if (hybridExceptionMessage != null)
                     {
-                         throw hybridException;
+                        throw new AzPSCloudException("Failed to get Azure Arc Server. Error: " + hybridExceptionMessage);
                     }
                 }
                 else if (ResourceType.Equals("Microsoft.Compute/virtualMachines"))
                 {
-                    if (CheckIfAzureVM(vmName, rgName, out computeException))
+                    if (CheckIfAzureVM(vmName, rgName, out computeExceptionMessage))
                     {
                         return "Microsoft.Compute/virtualMachines";
                     }
-                    else if (computeException != null)
+                    else if (computeExceptionMessage != null)
                     {
-                        throw computeException;
+                        throw new AzPSCloudException("Failed to get Azure Arc Server. Error: " + computeExceptionMessage);
                     }
                 }
             }
             else
             {
-                bool isArc = CheckIfArcServer(vmName, rgName, out hybridException);
-                bool isAzVM = CheckIfAzureVM(vmName, rgName, out computeException);
+                bool isArc = CheckIfArcServer(vmName, rgName, out hybridExceptionMessage);
+                bool isAzVM = CheckIfAzureVM(vmName, rgName, out computeExceptionMessage);
 
                 if (isArc && isAzVM)
                 {
@@ -251,7 +246,7 @@ namespace Microsoft.Azure.Commands.Ssh
                 }
                 else if (!isArc && !isAzVM)
                 { 
-                    throw new AzPSCloudException("Unable to determine the target machine type as azure vm or arc server.");
+                    throw new AzPSCloudException("Unable to determine the target machine type as azure vm or arc server. Errors: \n" + hybridExceptionMessage + "\n" + computeExceptionMessage);
                 }
                 else if (isArc)
                 {
@@ -265,10 +260,9 @@ namespace Microsoft.Azure.Commands.Ssh
             return null;
         }
 
-        public bool CheckIfAzureVM(string vmName, string rgName, out RestException azexception)
+        public bool CheckIfAzureVM(string vmName, string rgName, out string azexceptionMessage)
         {
-            azexception = null;
-
+            azexceptionMessage = null;
             try
             {
                 var result = this.VirtualMachineClient.GetWithHttpMessagesAsync(
@@ -278,7 +272,8 @@ namespace Microsoft.Azure.Commands.Ssh
             {
                 if (exception.Response.StatusCode == System.Net.HttpStatusCode.NotFound || exception.Response.StatusCode == System.Net.HttpStatusCode.Forbidden)
                 {
-                    azexception = exception;
+                    JObject json = JObject.Parse(exception.Response.Content);
+                    azexceptionMessage = (string)json["error"]["message"];
                     return false;
                 }
                 else
@@ -290,9 +285,9 @@ namespace Microsoft.Azure.Commands.Ssh
             return true;
         }
 
-        public bool CheckIfArcServer(string vmName, string rgName, out RestException azexception)
+        public bool CheckIfArcServer(string vmName, string rgName, out string azexceptionMessage)
         {
-            azexception = null;
+            azexceptionMessage = null;
             try
             {
                 var result = this.ArcMachineClient.GetWithHttpMessagesAsync(rgName, vmName).GetAwaiter().GetResult();
@@ -301,7 +296,8 @@ namespace Microsoft.Azure.Commands.Ssh
             {
                 if (exception.Response.StatusCode == System.Net.HttpStatusCode.NotFound || exception.Response.StatusCode == System.Net.HttpStatusCode.Forbidden)
                 {
-                    azexception = exception;
+                    JObject json = JObject.Parse(exception.Response.Content);
+                    azexceptionMessage = (string)json["error"]["message"];
                     return false;
                 }
                 else

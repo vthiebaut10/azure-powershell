@@ -157,9 +157,9 @@ namespace Microsoft.Azure.Commands.Ssh
             }
             if (IsArc())
             {
-                GetClientSideProxy();
-                //GetRelayInformation();
-                //Save relay information to a file();
+                proxyPath = GetClientSideProxy();
+                GetRelayInformation();
+                CreateRelayInfoFile();
             }
             if (LocalUser == null)
             {
@@ -173,6 +173,21 @@ namespace Microsoft.Azure.Commands.Ssh
             StreamWriter configSW = new StreamWriter(ConfigFilePath, !Overwrite);
             configSW.WriteLine(entry.ConfigString);
             configSW.Close();
+        }
+
+
+        private void CreateRelayInfoFile()
+        {
+            string relayInfoDir = GetKeysDestinationFolder();
+            Directory.CreateDirectory(relayInfoDir);
+
+            string relayInfoFilename = ResourceGroupName + "-" + Name + "-relay_info";
+            RelayInfoPath = Path.Combine(relayInfoDir, relayInfoFilename);
+            DeleteFile(RelayInfoPath);
+            StreamWriter relaySW = new StreamWriter(RelayInfoPath);
+            relaySW.WriteLine(relayInfo);
+            relaySW.Close();
+            WriteInColor($"Generated relay information file {RelayInfoPath} is valid until {relayInfoExpiration} in local time.", ConsoleColor.Green);
         }
 
         private string GetKeysDestinationFolder()
