@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PsModuleName>Cdn</PsModuleName>
+  </PropertyGroup>
+
+  <Import Project="$(MSBuildThisFileDirectory)..\..\Az.Test.props" />
+
+  <PropertyGroup>
+    <RootNamespace>$(LegacyAssemblyPrefix)$(PsModuleName)$(AzTestAssemblySuffix).ScenarioTests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Ssh\Ssh.csproj"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="ScenarioTests\" />
+    <Folder Include="SessionRecords\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Resources\DummyKey.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>
