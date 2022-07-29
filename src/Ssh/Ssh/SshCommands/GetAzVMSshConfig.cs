@@ -8,8 +8,8 @@ using Microsoft.Azure.PowerShell.Cmdlets.Ssh.Common;
 
 namespace Microsoft.Azure.Commands.Ssh
 {   
-    [Cmdlet("Create",
-        ResourceManager.Common.AzureRMConstants.AzureRMPrefix + "VMSshConfig")]
+    [Cmdlet("Export",
+        ResourceManager.Common.AzureRMConstants.AzureRMPrefix + "SshConfig")]
     [OutputType(typeof(PSSshConfigEntry))]
     public class CreateAzVMSshConfig : SshBaseCmdlet
     {

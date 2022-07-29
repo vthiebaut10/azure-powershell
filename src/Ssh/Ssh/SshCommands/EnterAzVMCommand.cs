@@ -30,7 +30,7 @@ namespace Microsoft.Azure.Commands.Ssh
         ResourceManager.Common.AzureRMConstants.AzureRMPrefix + "VM",
         DefaultParameterSetName = InteractiveParameterSet)]
     [OutputType(typeof(bool))]
-    [Alias("Enter-AzureVM", "Enter-ArcServer")]
+    [Alias("Enter-AzArcServer")]
     public class EnterAzVMCommand : SshBaseCmdlet, IDynamicParameters
     {
         [Parameter(
@@ -132,10 +132,10 @@ namespace Microsoft.Azure.Commands.Ssh
         {
             base.ExecuteCmdlet();
 
-            foreach (string a in SshArguments)
+            /*foreach (string a in SshArguments)
             {
                 Console.WriteLine(a);
-            }
+            }*/
             
             switch (ParameterSetName)
             {
@@ -194,8 +194,7 @@ namespace Microsoft.Azure.Commands.Ssh
 
         private int StartSSHConnection()
         {                                 
-            
-            
+           
             string sshClient = GetSSHClientPath("ssh");
             string command = GetHost() + " " + BuildArgs();
 
@@ -208,7 +207,6 @@ namespace Microsoft.Azure.Commands.Ssh
             sshProcess.StartInfo.Arguments = command;
             if (deleteCert)
                 sshProcess.StartInfo.RedirectStandardError = true;
-                //sshProcess.StartInfo.RedirectStandardOutput = true;
             sshProcess.StartInfo.UseShellExecute = false;
             sshProcess.Start();
 
