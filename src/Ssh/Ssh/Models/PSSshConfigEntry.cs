@@ -65,7 +65,7 @@ namespace Microsoft.Azure.Commands.Ssh.Models
 
         // This is pretty horrible, but it does help me avoid passing a bunch of parameters.
         // Rethink this.
-        public PSSshConfigEntry(CreateAzVMSshConfig SshCmdlet)
+        public PSSshConfigEntry(ExportAzSshConfig SshCmdlet)
         {
             if (SshCmdlet.ResourceGroupName != null && SshCmdlet.Name != null) { Host = SshCmdlet.ResourceGroupName + "-" + SshCmdlet.Name; }
             else { Host = SshCmdlet.Ip; }

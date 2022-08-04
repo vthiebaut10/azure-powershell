@@ -11,7 +11,7 @@ namespace Microsoft.Azure.Commands.Ssh
     [Cmdlet("Export",
         ResourceManager.Common.AzureRMConstants.AzureRMPrefix + "SshConfig")]
     [OutputType(typeof(PSSshConfigEntry))]
-    public class CreateAzVMSshConfig : SshBaseCmdlet
+    public class ExportAzSshConfig : SshBaseCmdlet
     {
         [Parameter(
             ParameterSetName = InteractiveParameterSet,
@@ -151,19 +151,40 @@ namespace Microsoft.Azure.Commands.Ssh
 
             ConfigFilePath = Path.GetFullPath(ConfigFilePath);
 
+            ProgressRecord record = new ProgressRecord(0, "Creating SSH Config", "Start Preparing");
+            record.PercentComplete = 0;
+            WriteProgress(record);
+
             if (!IsArc() && !ParameterSetName.Equals(IpAddressParameterSet))
             {
                 GetVmIpAddress();
+                record.PercentComplete = 50;
+                record.StatusDescription = "Retrieved target IP address";
+                WriteProgress(record);
             }
             if (IsArc())
             {
                 proxyPath = GetClientSideProxy();
+                record.PercentComplete = 25;
+                record.StatusDescription = "Downloaded proxy to " + proxyPath;
+                WriteProgress(record);
                 GetRelayInformation();
+                record.PercentComplete = 50;
+                record.StatusDescription = "Completed retrieving relay information";
+                WriteProgress(record);
                 CreateRelayInfoFile();
+                record.PercentComplete = 65;
+                record.StatusDescription = "Created file containing relay information";
+                WriteProgress(record);
             }
             if (LocalUser == null)
             {
                 PrepareAadCredentials(GetKeysDestinationFolder());
+                record.PercentComplete = 90;
+                record.StatusDescription = "Generated Certificate File";
+                WriteProgress(record);
+
+                // This is not looking right. What should I use to write messages that are not exactly warnings, but not verbose either. More like information to the user.
                 WriteInColor($"Generated AAD Certificate {CertificateFile} is valid until {GetCertificateExpirationTimes()} in local time.", ConsoleColor.Green);
             }
 
@@ -173,6 +194,11 @@ namespace Microsoft.Azure.Commands.Ssh
             StreamWriter configSW = new StreamWriter(ConfigFilePath, !Overwrite);
             configSW.WriteLine(entry.ConfigString);
             configSW.Close();
+
+            record.PercentComplete = 100;
+            record.StatusDescription = "Successfully wrote config file";
+            record.RecordType = ProgressRecordType.Completed;
+            WriteProgress(record);
         }
 
 
@@ -187,6 +213,8 @@ namespace Microsoft.Azure.Commands.Ssh
             StreamWriter relaySW = new StreamWriter(RelayInfoPath);
             relaySW.WriteLine(relayInfo);
             relaySW.Close();
+
+            // This is not looking right. What should I use to write messages that are not exactly warnings, but not verbose either. More like information to the user.
             WriteInColor($"Generated relay information file {RelayInfoPath} is valid until {relayInfoExpiration} in local time.", ConsoleColor.Green);
         }
 

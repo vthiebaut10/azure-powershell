@@ -21,6 +21,8 @@ using System.Diagnostics;
 using System.Collections.Generic;
 using Microsoft.Azure.PowerShell.Cmdlets.Ssh.Common;
 using System.Text.RegularExpressions;
+using System.Threading;
+using System.Runtime.InteropServices;
 
 
 namespace Microsoft.Azure.Commands.Ssh
@@ -131,11 +133,6 @@ namespace Microsoft.Azure.Commands.Ssh
         public override void ExecuteCmdlet()
         {
             base.ExecuteCmdlet();
-
-            /*foreach (string a in SshArguments)
-            {
-                Console.WriteLine(a);
-            }*/
             
             switch (ParameterSetName)
             {
@@ -152,22 +149,38 @@ namespace Microsoft.Azure.Commands.Ssh
                     break;
             }
 
+            ProgressRecord record = new ProgressRecord(0, "Prepare for starting SSH connection", "Start Preparing");
+            record.PercentComplete = 0;
+            WriteProgress(record);
+
             if (!IsArc() && !ParameterSetName.Equals(IpAddressParameterSet))
             {
                 GetVmIpAddress();
+                record.PercentComplete = 50;
+                record.StatusDescription = "Retrieved the IP address of the target VM";
+                WriteProgress(record);
             }
             if (IsArc())
             {
                 proxyPath = GetClientSideProxy();
+                record.PercentComplete = 25;
+                record.StatusDescription = "Dowloaded SSH Proxy, saved to " + proxyPath;
+                WriteProgress(record);
                 GetRelayInformation();
+                record.PercentComplete = 50;
+                record.StatusDescription = "Retrieved Relay Information";
+                WriteProgress(record);
             }
-
             try
             {
                 if (LocalUser == null)
                 {
                     PrepareAadCredentials();
                 }
+                record.PercentComplete = 100;
+                record.RecordType = ProgressRecordType.Completed;
+                record.StatusDescription = "Ready to start SSH connection.";
+                WriteProgress(record);
                 int sshStatus = StartSSHConnection();
 
                 if (this.PassThru.IsPresent)
@@ -194,8 +207,8 @@ namespace Microsoft.Azure.Commands.Ssh
 
         private int StartSSHConnection()
         {                                 
-           
             string sshClient = GetSSHClientPath("ssh");
+            // Process is not accepting ArgumentList instead of Arguments
             string command = GetHost() + " " + BuildArgs();
 
             Process sshProcess = new Process();
@@ -205,55 +218,39 @@ namespace Microsoft.Azure.Commands.Ssh
                 sshProcess.StartInfo.EnvironmentVariables["SSHPROXY_RELAY_INFO"] = relayInfo;
             sshProcess.StartInfo.FileName = sshClient;
             sshProcess.StartInfo.Arguments = command;
-            if (deleteCert)
-                sshProcess.StartInfo.RedirectStandardError = true;
+            sshProcess.StartInfo.RedirectStandardError = true;
             sshProcess.StartInfo.UseShellExecute = false;
             sshProcess.Start();
 
-            List<string> errorMessages = new List<string>();
             bool writeLogs = false;
-            if (deleteCert)
-            {
-                var stderr = sshProcess.StandardError;
+            var stderr = sshProcess.StandardError;
                 
-                if (SshArguments != null &&
-                    (Array.Exists(SshArguments, x => x == "-v") ||
-                    Array.Exists(SshArguments, x => x == "-vv") ||
-                    Array.Exists(SshArguments, x => x == "-vvv")) ||
-                    IsDebugMode())
-                {
-                    writeLogs = true;
-                }
-
-                string line;
-                while ((line = stderr.ReadLine()) != null)
-                {
-                    if (writeLogs)
-                    {
-                        Console.WriteLine(line);
-                    } 
-                    if (line.Contains("debug1: Entering interactive session."))
-                    {
-                        DoCleanup();
-                    }
-                    if (!line.Contains("debug1: ") &&
-                        !line.Contains("debug2: ") &&
-                        !line.Contains("debug3: "))
-                    {
-                        errorMessages.Add(line);
-                    }
-                }
+            if (SshArguments != null &&
+               (Array.Exists(SshArguments, x => x == "-v") ||
+                Array.Exists(SshArguments, x => x == "-vv") ||
+                Array.Exists(SshArguments, x => x == "-vvv")) ||
+                IsDebugMode())
+            {
+                writeLogs = true;
             }
 
+            string line;
+            while ((line = stderr.ReadLine()) != null)
+            {
+                if (writeLogs || (!line.Contains("debug1: ") && !line.Contains("debug2: ") && !line.Contains("debug3: ")))
+                {
+                    // We have the option of filtering out some of the logs that we don't want printed here.
+                    Console.Error.WriteLine(line);
+                } 
+                if (line.Contains("debug1: Entering interactive session."))
+                {
+                    DoCleanup();
+                }
+                //check for well known errors?
+            }
+        
             sshProcess.WaitForExit();
 
-            if (sshProcess.ExitCode != 0 && !writeLogs && deleteCert)
-            {
-                foreach (string errorLine in errorMessages)
-                {
-                    Console.WriteLine(errorLine);
-                }
-            }
             return sshProcess.ExitCode;
         }
 
@@ -291,15 +288,15 @@ namespace Microsoft.Azure.Commands.Ssh
                 argList.Add("-p " + Port);
             }
             
-            if (deleteCert || IsDebugMode())
+            if (SshArguments == null ||
+               (!Array.Exists(SshArguments, x => x == "-v") &&
+                !Array.Exists(SshArguments, x => x == "-vv") &&
+                !Array.Exists(SshArguments, x => x == "-vvv")))
             {
-                if (SshArguments == null ||
-                   (!Array.Exists(SshArguments, x => x == "-v") &&
-                    !Array.Exists(SshArguments, x => x == "-vv") &&
-                    !Array.Exists(SshArguments, x => x == "-vvv")))
-                {
+                if (IsDebugMode()) 
                     argList.Add("-vvv");
-                }
+                else
+                    argList.Add("-v");
             }
             
             if (SshArguments != null)
