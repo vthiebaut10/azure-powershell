@@ -5,6 +5,8 @@ using System.Management.Automation;
 using Microsoft.Azure.Commands.ResourceManager.Common.ArgumentCompleters;
 using Microsoft.Azure.Commands.Common.Exceptions;
 using Microsoft.Azure.PowerShell.Cmdlets.Ssh.Common;
+using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 
 namespace Microsoft.Azure.Commands.Ssh
 {   
@@ -13,179 +15,51 @@ namespace Microsoft.Azure.Commands.Ssh
     [OutputType(typeof(PSSshConfigEntry))]
     public class ExportAzSshConfig : SshBaseCmdlet
     {
-        [Parameter(
-            ParameterSetName = InteractiveParameterSet,
-            Mandatory = true,
-            ValueFromPipelineByPropertyName = true)]
-        [ResourceGroupCompleter]
-        [ValidateNotNullOrEmpty]
-        public override string ResourceGroupName { get; set; }
-
-        [Parameter(
-            ParameterSetName = InteractiveParameterSet,
-            Mandatory = true,
-            ValueFromPipelineByPropertyName = true)]
-        [SshResourceNameCompleter(new string[] { "Microsoft.Compute/virtualMachines", "Microsoft.HybridCompute/machines" }, "ResourceGroupName")]
-        [ValidateNotNullOrEmpty]
-        public override string Name { get; set; }
-
-        [Parameter(
-            ParameterSetName = IpAddressParameterSet,
-            Mandatory = true)]
-        [ValidateNotNullOrEmpty]
-        public override string Ip { get; set; }
-
-        [Parameter(
-            ParameterSetName = ResourceIdParameterSet,
-            Mandatory = true,
-            ValueFromPipeline = true)]
-        [ValidateNotNullOrEmpty]
-        [SshResourceIdCompleter(new string[] { "Microsoft.HybridCompute/machines", "Microsoft.Compute/virtualMachines" })]
-        public override string ResourceId { get; set; }
-
-        [Parameter(
-            ParameterSetName = InteractiveParameterSet,
-            Mandatory = true)]
-        [Parameter(
-            ParameterSetName = IpAddressParameterSet,
-            Mandatory = true)]
-        [Parameter(
-            ParameterSetName = ResourceIdParameterSet,
-            Mandatory = true)]
-        [ValidateNotNullOrEmpty]
-        public string ConfigFilePath { get; set; }
-
-        [Parameter(ParameterSetName = InteractiveParameterSet)]
-        [Parameter(ParameterSetName = IpAddressParameterSet)]
-        [Parameter(ParameterSetName = ResourceIdParameterSet)]
-        [ValidateNotNullOrEmpty]
-        public override string PublicKeyFile { get; set; }
-
-        [Parameter(ParameterSetName = InteractiveParameterSet)]
-        [Parameter(ParameterSetName = IpAddressParameterSet)]
-        [Parameter(ParameterSetName = ResourceIdParameterSet)]
-        [ValidateNotNullOrEmpty]
-        public override string PrivateKeyFile { get; set; }
-
-        [Parameter(ParameterSetName = InteractiveParameterSet)]
-        [Parameter(ParameterSetName = ResourceIdParameterSet)]
-        [ValidateNotNullOrEmpty]
-        public override SwitchParameter UsePrivateIp { get; set; }
-
-        [Parameter(ParameterSetName = InteractiveParameterSet)]
-        [Parameter(ParameterSetName = IpAddressParameterSet)]
-        [Parameter(ParameterSetName = ResourceIdParameterSet)]
-        [ValidateNotNullOrEmpty]
-        public override string LocalUser { get; set; }
-
-        [Parameter(ParameterSetName = InteractiveParameterSet)]
-        [Parameter(ParameterSetName = IpAddressParameterSet)]
-        [Parameter(ParameterSetName = ResourceIdParameterSet)]
-        [ValidateNotNullOrEmpty]
-        public override string Port { get; set; }
-
-        [Parameter(ParameterSetName = InteractiveParameterSet)]
-        [Parameter(ParameterSetName = IpAddressParameterSet)]
-        [Parameter(ParameterSetName = ResourceIdParameterSet)]
-        [ValidateNotNullOrEmpty]
-        public override string SshClientFolder { get; set; }
-
-        [Parameter(ParameterSetName = InteractiveParameterSet)]
-        [PSArgumentCompleter("Microsoft.Compute/virtualMachines", "Microsoft.HybridCompute/machines")]
-        [ValidateNotNullOrEmpty]
-        public override string ResourceType { get; set; }
-
-        [Parameter(ParameterSetName = InteractiveParameterSet)]
-        [Parameter(ParameterSetName = IpAddressParameterSet)]
-        [Parameter(ParameterSetName = ResourceIdParameterSet)]
-        [ValidateNotNullOrEmpty]
-        public SwitchParameter Overwrite { get; set; }
-
-        [Parameter(ParameterSetName = InteractiveParameterSet)]
-        [Parameter(ParameterSetName = IpAddressParameterSet)]
-        [Parameter(ParameterSetName = ResourceIdParameterSet)]
-        [ValidateNotNullOrEmpty]
-        public string KeysDestinationFolder { get; set; }
-
-        [Parameter(ParameterSetName = InteractiveParameterSet)]
-        [Parameter(ParameterSetName = ResourceIdParameterSet)]
-        [ValidateNotNullOrEmpty]
-        public override string SshProxyFolder { get; set; }
-
-        public string RelayInfoPath { get; set; }
-
-        public new object GetDynamicParameters()
+        #region Supress Enter-AzVM Parameters
+        public override string[] SshArguments
         {
-            if (LocalUser != null)
+            get
             {
-                certificateDynamicParameter = new SendCertParameter();
-                return certificateDynamicParameter;
+                return null;
             }
-            return null;
         }
+        #endregion
+
+        #region Properties
+        public string RelayInfoPath { get; set; }
+        #endregion
 
         public override void ExecuteCmdlet()
         {
             base.ExecuteCmdlet();
 
-            switch (ParameterSetName)
-            {
-                case IpAddressParameterSet:
-                    ResourceType = "Microsoft.Compute/virtualMachines";
-                    break;
-                case ResourceIdParameterSet:
-                    Name = AzureUtils.GetNameFromId(ResourceId);
-                    ResourceGroupName = AzureUtils.GetResourceGroupNameFromId(ResourceId);
-                    ResourceType = AzureUtils.DecideResourceType(Name, ResourceGroupName, AzureUtils.GetResourceTypeFromId(ResourceId));
-                    break;
-                case InteractiveParameterSet:
-                    ResourceType = AzureUtils.DecideResourceType(Name, ResourceGroupName, ResourceType);
-                    break;
-            }
-
-            // Get some help with maybe using this as a dynamic parameter
-            if ((PublicKeyFile != null || PrivateKeyFile != null) && KeysDestinationFolder != null)
-            {
-                throw new AzPSArgumentException("-KeysDestinationFolder can't be used in conjunction with -PublicKeyFile or -PrivateKeyFile", nameof(KeysDestinationFolder));
-            }
+            BeforeExecution();
 
             ConfigFilePath = Path.GetFullPath(ConfigFilePath);
 
             ProgressRecord record = new ProgressRecord(0, "Creating SSH Config", "Start Preparing");
-            record.PercentComplete = 0;
-            WriteProgress(record);
+            UpdateProgressBar(record, "Start Preparing", 0);
 
             if (!IsArc() && !ParameterSetName.Equals(IpAddressParameterSet))
             {
                 GetVmIpAddress();
-                record.PercentComplete = 50;
-                record.StatusDescription = "Retrieved target IP address";
-                WriteProgress(record);
+                UpdateProgressBar(record, "Retrieved target IP address", 50);
             }
             if (IsArc())
             {
                 proxyPath = GetClientSideProxy();
-                record.PercentComplete = 25;
-                record.StatusDescription = "Downloaded proxy to " + proxyPath;
-                WriteProgress(record);
+                UpdateProgressBar(record, "Downloaded proxy to " + proxyPath, 25);
                 GetRelayInformation();
-                record.PercentComplete = 50;
-                record.StatusDescription = "Completed retrieving relay information";
-                WriteProgress(record);
+                UpdateProgressBar(record, "Completed retrieving relay information", 50);
                 CreateRelayInfoFile();
-                record.PercentComplete = 65;
-                record.StatusDescription = "Created file containing relay information";
-                WriteProgress(record);
+                UpdateProgressBar(record, "Created file containing relay information", 65);
             }
             if (LocalUser == null)
             {
                 PrepareAadCredentials(GetKeysDestinationFolder());
-                record.PercentComplete = 90;
-                record.StatusDescription = "Generated Certificate File";
-                WriteProgress(record);
-
-                // This is not looking right. What should I use to write messages that are not exactly warnings, but not verbose either. More like information to the user.
-                WriteInColor($"Generated AAD Certificate {CertificateFile} is valid until {GetCertificateExpirationTimes()} in local time.", ConsoleColor.Green);
+                UpdateProgressBar(record, "Generated Certificate File", 90);
+                // This is not exactly a warning. But I couldn't make WriteInformation or WriteObject work.
+                WriteWarning($"Generated AAD Certificate {CertificateFile} is valid until {GetCertificateExpirationTimes()} in local time.");
             }
 
             PSSshConfigEntry entry = 
@@ -195,13 +69,11 @@ namespace Microsoft.Azure.Commands.Ssh
             configSW.WriteLine(entry.ConfigString);
             configSW.Close();
 
-            record.PercentComplete = 100;
-            record.StatusDescription = "Successfully wrote config file";
             record.RecordType = ProgressRecordType.Completed;
-            WriteProgress(record);
+            UpdateProgressBar(record, "Successfully wrote config file", 100);
         }
 
-
+        #region Private Methods
         private void CreateRelayInfoFile()
         {
             string relayInfoDir = GetKeysDestinationFolder();
@@ -214,8 +86,8 @@ namespace Microsoft.Azure.Commands.Ssh
             relaySW.WriteLine(relayInfo);
             relaySW.Close();
 
-            // This is not looking right. What should I use to write messages that are not exactly warnings, but not verbose either. More like information to the user.
-            WriteInColor($"Generated relay information file {RelayInfoPath} is valid until {relayInfoExpiration} in local time.", ConsoleColor.Green);
+            // This is not exactly a warning. But I couldn't make WriteInformation or WriteObject work.
+            WriteWarning($"Generated relay information file {RelayInfoPath} is valid until {relayInfoExpiration} in local time.");
         }
 
         private string GetKeysDestinationFolder()
@@ -223,20 +95,32 @@ namespace Microsoft.Azure.Commands.Ssh
             if (KeysDestinationFolder == null)
             {
                 string configFolder = Path.GetDirectoryName(ConfigFilePath);
-                if (!Directory.Exists(configFolder))
-                {
-                    throw new AzPSArgumentException("Config file destination folder " + configFolder + " does not exist.", nameof(ConfigFilePath));
-                }
                 string keysFolderName = Ip;
                 if (ResourceGroupName != null && Name != null)
                 {
                     keysFolderName = ResourceGroupName + "-" + Name;
                 }
 
+                if (keysFolderName.Equals("*"))
+                {
+                    // If the user provides -Ip *, that would not be a valid name for Windows. Treat it as a special case.
+                    keysFolderName = "all_ips";
+                }
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    //Make sure that the folder name doesn't have illegal characters
+                    string regexString = "[" + Regex.Escape(new string(Path.GetInvalidFileNameChars())) + "]";
+                    Regex containsInvalidCharacter = new Regex(regexString);
+                    if (containsInvalidCharacter.IsMatch(keysFolderName))
+                    {
+                        throw new AzPSInvalidOperationException("Unable to create default keys destination folder. Resource contain invalid characters. Please provide -KeysDestinationFolder.");
+                    }
+                }
+
                 return Path.Combine(configFolder, "az_ssh_config", keysFolderName);
             }
             return KeysDestinationFolder;
         }
-
+        #endregion
     }
 }

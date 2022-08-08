@@ -34,7 +34,9 @@ namespace Microsoft.Azure.PowerShell.Cmdlets.Ssh.Common
             var myCred = myEndpoint.GetCredentials(3600);
             return myCred.Value;
         }
-        
+
+        // how to create an endpoint?
+
 
     }
 }

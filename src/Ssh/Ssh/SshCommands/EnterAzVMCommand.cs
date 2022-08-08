@@ -15,14 +15,9 @@
 using System;
 using System.IO;
 using System.Management.Automation;
-using Microsoft.Azure.Commands.ResourceManager.Common.ArgumentCompleters;
 using Microsoft.Azure.Commands.Common.Exceptions;
 using System.Diagnostics;
 using System.Collections.Generic;
-using Microsoft.Azure.PowerShell.Cmdlets.Ssh.Common;
-using System.Text.RegularExpressions;
-using System.Threading;
-using System.Runtime.InteropServices;
 
 
 namespace Microsoft.Azure.Commands.Ssh
@@ -33,143 +28,46 @@ namespace Microsoft.Azure.Commands.Ssh
         DefaultParameterSetName = InteractiveParameterSet)]
     [OutputType(typeof(bool))]
     [Alias("Enter-AzArcServer")]
-    public class EnterAzVMCommand : SshBaseCmdlet, IDynamicParameters
+    public class EnterAzVMCommand : SshBaseCmdlet
     {
-        [Parameter(
-            ParameterSetName = InteractiveParameterSet,
-            Mandatory = true,
-            ValueFromPipelineByPropertyName = true)]
-        [ResourceGroupCompleter]
-        [ValidateNotNullOrEmpty]
-        public override string ResourceGroupName { get; set; }
+        #region Supress Export-AzSshConfig Parameters
 
-        [Parameter(
-            ParameterSetName = InteractiveParameterSet,
-            Mandatory = true,
-            ValueFromPipelineByPropertyName = true)]
-        [SshResourceNameCompleter(new string[] { "Microsoft.Compute/virtualMachines", "Microsoft.HybridCompute/machines" }, "ResourceGroupName")]
-        [ValidateNotNullOrEmpty]
-        public override string Name { get; set; }
-
-        [Parameter(
-            ParameterSetName = IpAddressParameterSet,
-            Mandatory = true)]
-        [ValidateNotNullOrEmpty]
-        public override string Ip { get; set; }
-
-        [Parameter(
-            ParameterSetName = ResourceIdParameterSet,
-            Mandatory = true,
-            ValueFromPipeline = true)]
-        [ValidateNotNullOrEmpty]
-        [SshResourceIdCompleter(new string[] { "Microsoft.HybridCompute/machines", "Microsoft.Compute/virtualMachines" })]
-        public override string ResourceId { get; set; }
-
-        [Parameter(ParameterSetName = InteractiveParameterSet)]
-        [Parameter(ParameterSetName = IpAddressParameterSet)]
-        [Parameter(ParameterSetName = ResourceIdParameterSet)]
-        [ValidateNotNullOrEmpty]
-        public override string PublicKeyFile { get; set; }
-
-        [Parameter(ParameterSetName = InteractiveParameterSet)]
-        [Parameter(ParameterSetName = IpAddressParameterSet)]
-        [Parameter(ParameterSetName = ResourceIdParameterSet)]
-        [ValidateNotNullOrEmpty]
-        public override string PrivateKeyFile { get; set; }
-
-        [Parameter(ParameterSetName = InteractiveParameterSet)]
-        [Parameter(ParameterSetName = ResourceIdParameterSet)]
-        [ValidateNotNullOrEmpty]
-        public override SwitchParameter UsePrivateIp { get; set; }
-
-        [Parameter(ParameterSetName = InteractiveParameterSet)]
-        [Parameter(ParameterSetName = IpAddressParameterSet)]
-        [Parameter(ParameterSetName = ResourceIdParameterSet)]
-        [ValidateNotNullOrEmpty]
-        public override string LocalUser { get; set; }
-
-        [Parameter(ParameterSetName = InteractiveParameterSet)]
-        [Parameter(ParameterSetName = IpAddressParameterSet)]
-        [Parameter(ParameterSetName = ResourceIdParameterSet)]
-        [ValidateNotNullOrEmpty]
-        public override string Port { get; set; }
-
-        [Parameter(ParameterSetName = InteractiveParameterSet)]
-        [Parameter(ParameterSetName = IpAddressParameterSet)]
-        [Parameter(ParameterSetName = ResourceIdParameterSet)]
-        [ValidateNotNullOrEmpty]
-        public override string SshClientFolder { get; set; }
-
-        [Parameter(ParameterSetName = InteractiveParameterSet)]
-        [PSArgumentCompleter("Microsoft.Compute/virtualMachines", "Microsoft.HybridCompute/machines")]
-        [ValidateNotNullOrEmpty]
-        public override string ResourceType { get; set; }
-
-        [Parameter(ParameterSetName = InteractiveParameterSet)]
-        [Parameter(ParameterSetName = ResourceIdParameterSet)]
-        [ValidateNotNullOrEmpty]
-        public override string SshProxyFolder { get; set; }
-
-        [Parameter(ParameterSetName = InteractiveParameterSet, ValueFromRemainingArguments = true)]
-        [Parameter(ParameterSetName = IpAddressParameterSet, ValueFromRemainingArguments = true)]
-        [Parameter(ParameterSetName = ResourceIdParameterSet, ValueFromRemainingArguments = true)]
-        [ValidateNotNullOrEmpty]
-        public string[] SshArguments { get; set; }
-
-        [Parameter(Mandatory = false)]
-        public SwitchParameter PassThru { get; set; }
-
-        public new object GetDynamicParameters()
-        {
-            if (LocalUser != null)
-            {
-                certificateDynamicParameter = new SendCertParameter();
-                return certificateDynamicParameter;
-            }
-            return null;
+        public override string ConfigFilePath
+        { 
+            get { return null; } 
         }
-        //private SendCertParameter certificateDynamicParameter;
+        public override SwitchParameter Overwrite
+        {
+            get { return false; }
+        }
 
+        public override string KeysDestinationFolder
+        {
+            get { return null; }
+        }
+        
+        #endregion
+      
         public override void ExecuteCmdlet()
         {
             base.ExecuteCmdlet();
-            
-            switch (ParameterSetName)
-            {
-                case IpAddressParameterSet:
-                    ResourceType = "Microsoft.Compute/virtualMachines";
-                    break;
-                case ResourceIdParameterSet:
-                    Name = AzureUtils.GetNameFromId(ResourceId);
-                    ResourceGroupName = AzureUtils.GetResourceGroupNameFromId(ResourceId);
-                    ResourceType = AzureUtils.DecideResourceType(Name, ResourceGroupName, AzureUtils.GetResourceTypeFromId(ResourceId));
-                    break;
-                case InteractiveParameterSet:
-                    ResourceType = AzureUtils.DecideResourceType(Name, ResourceGroupName, ResourceType);
-                    break;
-            }
+
+            BeforeExecution();
 
             ProgressRecord record = new ProgressRecord(0, "Prepare for starting SSH connection", "Start Preparing");
-            record.PercentComplete = 0;
-            WriteProgress(record);
+            UpdateProgressBar(record, "Start preparing", 0);
 
             if (!IsArc() && !ParameterSetName.Equals(IpAddressParameterSet))
             {
                 GetVmIpAddress();
-                record.PercentComplete = 50;
-                record.StatusDescription = "Retrieved the IP address of the target VM";
-                WriteProgress(record);
+                UpdateProgressBar(record, "Retrieved the IP address of the target VM", 50);
             }
             if (IsArc())
             {
                 proxyPath = GetClientSideProxy();
-                record.PercentComplete = 25;
-                record.StatusDescription = "Dowloaded SSH Proxy, saved to " + proxyPath;
-                WriteProgress(record);
+                UpdateProgressBar(record, "Dowloaded SSH Proxy, saved to " + proxyPath, 25);
                 GetRelayInformation();
-                record.PercentComplete = 50;
-                record.StatusDescription = "Retrieved Relay Information";
-                WriteProgress(record);
+                UpdateProgressBar(record, "Retrieved Relay Information" + proxyPath, 50);
             }
             try
             {
@@ -177,10 +75,10 @@ namespace Microsoft.Azure.Commands.Ssh
                 {
                     PrepareAadCredentials();
                 }
-                record.PercentComplete = 100;
+                
                 record.RecordType = ProgressRecordType.Completed;
-                record.StatusDescription = "Ready to start SSH connection.";
-                WriteProgress(record);
+                UpdateProgressBar(record, "Ready to start SSH connection.", 100);
+
                 int sshStatus = StartSSHConnection();
 
                 if (this.PassThru.IsPresent)
@@ -193,6 +91,8 @@ namespace Microsoft.Azure.Commands.Ssh
                 DoCleanup();
             }
         }
+
+        #region Private Methods
 
         private bool IsDebugMode()
         {
@@ -208,7 +108,7 @@ namespace Microsoft.Azure.Commands.Ssh
         private int StartSSHConnection()
         {                                 
             string sshClient = GetSSHClientPath("ssh");
-            // Process is not accepting ArgumentList instead of Arguments
+            // Process is not accepting ArgumentList instead of Arguments. .NET framework too old?
             string command = GetHost() + " " + BuildArgs();
 
             Process sshProcess = new Process();
@@ -240,13 +140,15 @@ namespace Microsoft.Azure.Commands.Ssh
                 if (writeLogs || (!line.Contains("debug1: ") && !line.Contains("debug2: ") && !line.Contains("debug3: ")))
                 {
                     // We have the option of filtering out some of the logs that we don't want printed here.
-                    Console.Error.WriteLine(line);
+                    // Console.Error.WriteLine(line);
+                    // Logs are written to StdErr on OpenSSH 
+                    Host.UI.WriteLine(line);
                 } 
                 if (line.Contains("debug1: Entering interactive session."))
                 {
                     DoCleanup();
                 }
-                //check for well known errors?
+                //check for well known errors: azcmagent config not set to listen to port 22, OpenSSH too old error
             }
         
             sshProcess.WaitForExit();
@@ -326,5 +228,7 @@ namespace Microsoft.Azure.Commands.Ssh
                 DeleteDirectory(Directory.GetParent(CertificateFile).ToString());
             }
         }
+
+        #endregion
     }
 }
