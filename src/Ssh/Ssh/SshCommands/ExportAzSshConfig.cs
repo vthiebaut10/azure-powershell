@@ -14,7 +14,7 @@ namespace Microsoft.Azure.Commands.Ssh
     [Cmdlet("Export",
         ResourceManager.Common.AzureRMConstants.AzureRMPrefix + "SshConfig")]
     [OutputType(typeof(PSSshConfigEntry))]
-    public class ExportAzSshConfig : SshBaseCmdlet
+    public sealed class ExportAzSshConfig : SshBaseCmdlet
     {
         #region Supress Enter-AzVM Parameters
         public override string[] SshArguments
@@ -123,10 +123,6 @@ namespace Microsoft.Azure.Commands.Ssh
             return KeysDestinationFolder;
         }
 
-        private bool CheckDirectoryPermissions(string path)
-        {
-            return false;
-        }
         #endregion
     }
 }

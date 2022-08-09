@@ -65,7 +65,7 @@ namespace Microsoft.Azure.Commands.Ssh
         private RMProfileClient profileClient;
         private SshAzureUtils azureUtils;
 
-        public SshAzureUtils AzureUtils
+        internal SshAzureUtils AzureUtils
         {
             get
             {
@@ -80,7 +80,7 @@ namespace Microsoft.Azure.Commands.Ssh
             set { azureUtils = value; }
         }
 
-        public RMProfileClient ProfileClient
+        internal RMProfileClient ProfileClient
         {
             get
             {

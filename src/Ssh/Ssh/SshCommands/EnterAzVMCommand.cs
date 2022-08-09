@@ -28,7 +28,7 @@ namespace Microsoft.Azure.Commands.Ssh
         DefaultParameterSetName = InteractiveParameterSet)]
     [OutputType(typeof(bool))]
     [Alias("Enter-AzArcServer")]
-    public class EnterAzVMCommand : SshBaseCmdlet
+    public sealed class EnterAzVMCommand : SshBaseCmdlet
     {
         #region Supress Export-AzSshConfig Parameters
 

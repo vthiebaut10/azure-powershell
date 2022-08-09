@@ -5,7 +5,7 @@ using System.Management.Automation;
 
 namespace Microsoft.Azure.PowerShell.Cmdlets.Ssh.Common
 {
-    class SshResourceIdCompleterAttribute : ArgumentCompleterAttribute
+    public class SshResourceIdCompleterAttribute : ArgumentCompleterAttribute
     {
         public SshResourceIdCompleterAttribute(string [] resourceTypes) : base(CreateScriptBlock(resourceTypes))
         {
