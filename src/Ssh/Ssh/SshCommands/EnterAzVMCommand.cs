@@ -80,7 +80,6 @@ namespace Microsoft.Azure.Commands.Ssh
                 UpdateProgressBar(record, "Ready to start SSH connection.", 100);
 
                 int sshStatus = StartSSHConnection();
-
                 if (this.PassThru.IsPresent)
                 {
                     WriteObject(sshStatus == 0);

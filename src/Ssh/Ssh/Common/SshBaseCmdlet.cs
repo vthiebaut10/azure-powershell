@@ -34,9 +34,8 @@ using Microsoft.Azure.Commands.Common.Authentication.Abstractions.Models;
 using Microsoft.Azure.PowerShell.Cmdlets.Ssh.Common;
 using Newtonsoft.Json;
 using Azure.ResourceManager.HybridConnectivity.Models;
-using Microsoft.Rest.Azure;
-using Newtonsoft.Json.Linq;
 using Microsoft.Azure.Commands.ResourceManager.Common.ArgumentCompleters;
+using Microsoft.Azure.Management.Internal.Resources.Utilities.Models;
 
 
 namespace Microsoft.Azure.Commands.Ssh
@@ -283,9 +282,10 @@ namespace Microsoft.Azure.Commands.Ssh
                     ResourceType = "Microsoft.Compute/virtualMachines";
                     break;
                 case ResourceIdParameterSet:
-                    Name = AzureUtils.GetNameFromId(ResourceId);
-                    ResourceGroupName = AzureUtils.GetResourceGroupNameFromId(ResourceId);
-                    ResourceType = AzureUtils.DecideResourceType(Name, ResourceGroupName, AzureUtils.GetResourceTypeFromId(ResourceId));
+                    ResourceIdentifier parsedId = new ResourceIdentifier(ResourceId);
+                    Name = parsedId.ResourceName;
+                    ResourceGroupName = parsedId.ResourceGroupName;
+                    ResourceType = AzureUtils.DecideResourceType(Name, ResourceGroupName, parsedId.ResourceType);
                     break;
                 case InteractiveParameterSet:
                     ResourceType = AzureUtils.DecideResourceType(Name, ResourceGroupName, ResourceType);

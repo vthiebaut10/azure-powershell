@@ -17,6 +17,7 @@ using Microsoft.Azure.Management.Compute.Models;
 using Microsoft.Azure.Management.Network;
 using Microsoft.Azure.Management.HybridCompute;
 using Microsoft.Azure.Management.HybridCompute.Models;
+using Microsoft.Azure.Management.Internal.Resources.Utilities.Models;
 using Microsoft.Azure.Commands.Common.Authentication;
 using Microsoft.Azure.Commands.Common.Authentication.Abstractions;
 using Microsoft.Azure.Commands.Common.Exceptions;
@@ -160,8 +161,9 @@ namespace Microsoft.Azure.Commands.Ssh
 
             foreach (var nicReference in vm.NetworkProfile.NetworkInterfaces)
             {
-                string nicRg = AzureIdUtilities.GetResourceGroup(nicReference.Id);
-                string nicName = AzureIdUtilities.GetResourceName(nicReference.Id);
+                ResourceIdentifier parsedNicId = new ResourceIdentifier(nicReference.Id);
+                string nicRg = parsedNicId.ResourceGroupName;
+                string nicName = parsedNicId.ResourceName;
 
                 var nic = this.NetworkClient.NetworkManagementClient.NetworkInterfaces.GetWithHttpMessagesAsync(
                     nicRg, nicName).GetAwaiter().GetResult();
@@ -169,8 +171,9 @@ namespace Microsoft.Azure.Commands.Ssh
                 var publicIps = nic.Body.IpConfigurations.Where(ipconfig => ipconfig.PublicIPAddress != null).Select(ipconfig => ipconfig.PublicIPAddress);
                 foreach (var ip in publicIps)
                 {
-                    var ipRg = AzureIdUtilities.GetResourceGroup(ip.Id);
-                    var ipName = AzureIdUtilities.GetResourceName(ip.Id);
+                    ResourceIdentifier parsedIpId = new ResourceIdentifier(ip.Id);
+                    var ipRg = parsedIpId.ResourceGroupName;
+                    var ipName = parsedIpId.ResourceName;
                     var ipAddress = this.NetworkClient.NetworkManagementClient.PublicIPAddresses.GetWithHttpMessagesAsync(
                         ipRg, ipName).GetAwaiter().GetResult().Body;
 
@@ -188,21 +191,6 @@ namespace Microsoft.Azure.Commands.Ssh
                 }
             }
             return publicIpAddress;
-        }
-
-        public string GetNameFromId(string ResourceId)
-        {
-            return AzureIdUtilities.GetResourceName(ResourceId);
-        }
-
-        public string GetResourceGroupNameFromId(string ResourceId)
-        {
-            return AzureIdUtilities.GetResourceGroup(ResourceId);
-        }
-           
-        public string GetResourceTypeFromId(string ResourceId)
-        {
-            return AzureIdUtilities.GetResourceType(ResourceId);
         }
 
         public string DecideResourceType(string vmName, string rgName, string ResourceType)

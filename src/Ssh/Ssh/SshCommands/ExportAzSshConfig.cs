@@ -7,6 +7,7 @@ using Microsoft.Azure.Commands.Common.Exceptions;
 using Microsoft.Azure.PowerShell.Cmdlets.Ssh.Common;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
+using System.Security.AccessControl;
 
 namespace Microsoft.Azure.Commands.Ssh
 {   
@@ -120,6 +121,11 @@ namespace Microsoft.Azure.Commands.Ssh
                 return Path.Combine(configFolder, "az_ssh_config", keysFolderName);
             }
             return KeysDestinationFolder;
+        }
+
+        private bool CheckDirectoryPermissions(string path)
+        {
+            return false;
         }
         #endregion
     }
