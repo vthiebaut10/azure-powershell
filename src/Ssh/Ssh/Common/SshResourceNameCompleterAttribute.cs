@@ -6,7 +6,7 @@ using Microsoft.Azure.Commands.ResourceManager.Common.ArgumentCompleters;
 
 namespace Microsoft.Azure.PowerShell.Cmdlets.Ssh.Common
 {
-    public class SshResourceNameCompleterAttribute : ArgumentCompleterAttribute
+    internal class SshResourceNameCompleterAttribute : ArgumentCompleterAttribute
     {
         public SshResourceNameCompleterAttribute(string [] resourceTypes, params string [] parentResourceParameterNames): base(CreateScriptBlock(resourceTypes, parentResourceParameterNames))
         {

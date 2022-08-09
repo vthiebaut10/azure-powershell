@@ -30,7 +30,7 @@ namespace Microsoft.Azure.Commands.Ssh
     /// <summary>
     /// Client to make API calls to Azure Compute Resource Provider.
     /// </summary>
-    public class ComputeClient
+    internal class ComputeClient
     {
         public IComputeManagementClient ComputeManagementClient { get; private set; }
 
@@ -49,7 +49,7 @@ namespace Microsoft.Azure.Commands.Ssh
     /// <summary>
     /// Client to make API calls to Azure Compute Resource Provider.
     /// </summary>
-    public class NetworkClient
+    internal class NetworkClient
     {
         public INetworkManagementClient NetworkManagementClient { get; private set; }
 
@@ -68,7 +68,7 @@ namespace Microsoft.Azure.Commands.Ssh
     /// <summary>
     /// Client to make API calls to Azure Hybrid Compute Resource Provider.
     /// </summary>
-    public class HybridComputeClient
+    internal class HybridComputeClient
     {
         public IHybridComputeManagementClient HybridComputeManagementClient { get; private set; }
 
@@ -87,11 +87,11 @@ namespace Microsoft.Azure.Commands.Ssh
     /// <summary>
     /// Class that provides utility methods that rely on external Azure Services.
     /// </summary>
-    public class SshAzureUtils
+    public sealed class SshAzureUtils
     {
-        private ComputeClient computeClient;
-        private NetworkClient networkClient;
-        private HybridComputeClient hybridClient;
+        private ComputeClient _computeClient;
+        private NetworkClient _networkClient;
+        private HybridComputeClient _hybridClient;
         private IAzureContext context;
 
         public SshAzureUtils(IAzureContext azureContext)
@@ -99,50 +99,50 @@ namespace Microsoft.Azure.Commands.Ssh
             context = azureContext;
         }
 
-        public ComputeClient ComputeClient
+        private ComputeClient ComputeClient
         {
             get
             {
-                if (computeClient == null)
+                if (_computeClient == null)
                 {
-                    computeClient = new ComputeClient(context);
+                    _computeClient = new ComputeClient(context);
                 }
 
-                return computeClient;
+                return _computeClient;
             }
 
-            set { computeClient = value; }
+            set { _computeClient = value; }
         }
 
-        public NetworkClient NetworkClient
+        private NetworkClient NetworkClient
         {
             get
             {
-                if (networkClient == null)
+                if (_networkClient == null)
                 {
-                    networkClient = new NetworkClient(context);
+                    _networkClient = new NetworkClient(context);
                 }
-                return networkClient;
+                return _networkClient;
             }
 
-            set { networkClient = value; }
+            set { _networkClient = value; }
         }
 
-        public HybridComputeClient HybridClient
+        private HybridComputeClient HybridClient
         {
             get
             {
-                if (hybridClient == null)
+                if (_hybridClient == null)
                 {
-                    hybridClient = new HybridComputeClient(context);
+                    _hybridClient = new HybridComputeClient(context);
                 }
-                return hybridClient;
+                return _hybridClient;
             }
 
-            set { hybridClient = value; }
+            set { _hybridClient = value; }
         }
 
-        public IVirtualMachinesOperations VirtualMachineClient
+        private IVirtualMachinesOperations VirtualMachineClient
         {
             get
             {
@@ -150,7 +150,7 @@ namespace Microsoft.Azure.Commands.Ssh
             }
         }
 
-        public IMachinesOperations ArcMachineClient
+        private IMachinesOperations ArcMachineClient
         {
             get
             {
@@ -158,6 +158,12 @@ namespace Microsoft.Azure.Commands.Ssh
             }
         }
 
+        /// <summary>
+        /// Gets the first public IP of an Azure Virtual Machine.
+        /// </summary>
+        /// <param name="vmName">Azure Virtual Machine Name</param>
+        /// <param name="rgName">Resource Group Name</param>
+        /// <returns>Virtual Machine Public IP</returns>
         public string GetFirstPublicIp(string vmName, string rgName)
         {
             var result = this.VirtualMachineClient.GetWithHttpMessagesAsync(
@@ -201,8 +207,26 @@ namespace Microsoft.Azure.Commands.Ssh
             return publicIpAddress;
         }
 
-        public string DecideResourceType(string vmName, string rgName, string ResourceType)
+        /// <summary>
+        /// Makes call to Azure to confirm the type of the target and if the resource
+        /// really exists in this context.
+        /// </summary>
+        /// <param name="vmName">Resource Name</param>
+        /// <param name="rgName">Resource Group Name</param>
+        /// <param name="ResourceType">
+        ///     Either "Microsoft.HybridCompute/machine" or 
+        ///     "Microsoft.Compute/virtualMachines"
+        /// </param>
+        /// <returns>
+        /// Either "Microsoft.HybridCompute/machine" or "Microsoft.Compute/virtualMachines".
+        /// If type of the target can't be confirmed, then throw a terminating error.
+        /// </returns>
+        public string DecideResourceType(
+            string vmName,
+            string rgName,
+            string ResourceType)
         {
+            
             string hybridExceptionMessage;
             string computeExceptionMessage;
 
@@ -210,53 +234,47 @@ namespace Microsoft.Azure.Commands.Ssh
             {
                 if (ResourceType.Equals("Microsoft.HybridCompute/machines"))
                 {
-                    if (CheckIfArcServer(vmName, rgName, out hybridExceptionMessage))
+                    if (TryArcServer(vmName, rgName, out hybridExceptionMessage))
                     {
                         return "Microsoft.HybridCompute/machines";
                     }
-                    else if (hybridExceptionMessage != null)
-                    {
-                        throw new AzPSCloudException("Failed to get Azure Arc Server. Error: " + hybridExceptionMessage);
-                    }
+                    
+                    throw new AzPSCloudException("Failed to get Azure Arc Server. Error: " + hybridExceptionMessage);
                 }
                 else if (ResourceType.Equals("Microsoft.Compute/virtualMachines"))
                 {
-                    if (CheckIfAzureVM(vmName, rgName, out computeExceptionMessage))
+                    if (TryAzureVM(vmName, rgName, out computeExceptionMessage))
                     {
                         return "Microsoft.Compute/virtualMachines";
                     }
-                    else if (computeExceptionMessage != null)
-                    {
-                        throw new AzPSCloudException("Failed to get Azure Arc Server. Error: " + computeExceptionMessage);
-                    }
+                    
+                    throw new AzPSCloudException("Failed to get Azure Arc Server. Error: " + computeExceptionMessage);
                 }
             }
-            else
-            {
-                bool isArc = CheckIfArcServer(vmName, rgName, out hybridExceptionMessage);
-                bool isAzVM = CheckIfAzureVM(vmName, rgName, out computeExceptionMessage);
 
-                if (isArc && isAzVM)
-                {
-                    throw new AzPSCloudException("A arc server and a azure vm with the same name. Please provide -ResourceType argument.");
-                }
-                else if (!isArc && !isAzVM)
-                { 
-                    throw new AzPSCloudException("Unable to determine the target machine type as azure vm or arc server. Errors: \n" + hybridExceptionMessage + "\n" + computeExceptionMessage);
-                }
-                else if (isArc)
-                {
-                    return "Microsoft.HybridCompute/machines";
-                }
-                else
-                {
-                    return "Microsoft.Compute/virtualMachines";
-                }
+            bool isArc = TryArcServer(vmName, rgName, out hybridExceptionMessage);            
+            bool isAzVM = TryAzureVM(vmName, rgName, out computeExceptionMessage);
+
+            if (isArc && isAzVM)
+            {
+                throw new AzPSCloudException("A arc server and a azure vm with the same name. Please provide -ResourceType argument.");
             }
-            return null;
+            else if (!isArc && !isAzVM)
+            { 
+                throw new AzPSCloudException("Unable to determine the target machine type as azure vm or arc server. Errors: \n" + hybridExceptionMessage + "\n" + computeExceptionMessage);
+            }
+            else if (isArc)
+            {
+               return "Microsoft.HybridCompute/machines";
+            }
+
+            return "Microsoft.Compute/virtualMachines";
         }
 
-        public bool CheckIfAzureVM(string vmName, string rgName, out string azexceptionMessage)
+        private bool TryAzureVM(
+            string vmName,
+            string rgName,
+            out string azexceptionMessage)
         {
             azexceptionMessage = null;
             try
@@ -272,16 +290,18 @@ namespace Microsoft.Azure.Commands.Ssh
                     azexceptionMessage = (string)json["error"]["message"];
                     return false;
                 }
-                else
-                {
-                    throw;
-                }
+
+                // Unexpected exception we can't handle.
+                throw;
             }
 
             return true;
         }
 
-        public bool CheckIfArcServer(string vmName, string rgName, out string azexceptionMessage)
+        private bool TryArcServer(
+            string vmName,
+            string rgName,
+            out string azexceptionMessage)
         {
             azexceptionMessage = null;
             try
@@ -296,10 +316,9 @@ namespace Microsoft.Azure.Commands.Ssh
                     azexceptionMessage = (string)json["error"]["message"];
                     return false;
                 }
-                else
-                {
-                    throw;
-                }
+
+                // Unexpected exception we can't handle.
+                throw;
             }
 
             return true;

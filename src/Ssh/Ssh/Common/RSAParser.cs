@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Microsoft.Azure.Commands.Ssh
 {
-    public class RSAParser
+    internal class RSAParser
     {
         public const string KeyType = "RSA";
 

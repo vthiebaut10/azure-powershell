@@ -44,27 +44,24 @@ namespace Microsoft.Azure.Commands.Ssh
     {
 
         #region Constants
-        public const string clientProxyStorageUrl = "https://sshproxysa.blob.core.windows.net";
-        public const string clientProxyRelease = "release01-11-21";
-        public const string clientProxyVersion = "1.3.017634";
+        private const string clientProxyStorageUrl = "https://sshproxysa.blob.core.windows.net";
+        private const string clientProxyRelease = "release01-11-21";
+        private const string clientProxyVersion = "1.3.017634";
 
-        public const string InteractiveParameterSet = "Interactive";
-        public const string ResourceIdParameterSet = "ResourceId";
-        public const string IpAddressParameterSet = "IpAddress";
+        protected internal const string InteractiveParameterSet = "Interactive";
+        protected internal const string ResourceIdParameterSet = "ResourceId";
+        protected internal const string IpAddressParameterSet = "IpAddress";
         #endregion
 
-        public static readonly string [] supportedResourceTypes = {"Microsoft.Compute/virtualMachines", "Microsoft.HybridCompute/machines" };
-        
-        protected bool deleteKeys;
-        protected bool deleteCert;
-        
-        public string proxyPath;
-        public string relayInfo;
-        public string aadCertificate;
-        protected DateTime relayInfoExpiration;
-        private RMProfileClient profileClient;
-        private SshAzureUtils azureUtils;
+        #region Fields
+        protected internal bool deleteKeys;
+        protected internal bool deleteCert;
+        protected internal string proxyPath;
+        protected internal string relayInfo;
+        protected internal DateTime relayInfoExpiration;
+        #endregion
 
+        #region Properties
         internal SshAzureUtils AzureUtils
         {
             get
@@ -79,6 +76,7 @@ namespace Microsoft.Azure.Commands.Ssh
 
             set { azureUtils = value; }
         }
+        private SshAzureUtils azureUtils;
 
         internal RMProfileClient ProfileClient
         {
@@ -93,6 +91,8 @@ namespace Microsoft.Azure.Commands.Ssh
 
             set { profileClient = value; }
         }
+        private RMProfileClient profileClient;
+        #endregion
 
         #region Parameters
         /// <summary>
@@ -272,9 +272,9 @@ namespace Microsoft.Azure.Commands.Ssh
 
         #endregion
 
-        #region Protected Methods
+        #region Protected Internal Methods
 
-        protected void BeforeExecution()
+        protected internal void BeforeExecution()
         {
             switch (ParameterSetName)
             {
@@ -295,14 +295,17 @@ namespace Microsoft.Azure.Commands.Ssh
             ValidateParameters();
         }
 
-        protected void UpdateProgressBar(ProgressRecord record, string statusMessage, int percentComplete)
+        protected internal void UpdateProgressBar(
+            ProgressRecord record,
+            string statusMessage,
+            int percentComplete)
         {
             record.PercentComplete = percentComplete;
             record.StatusDescription = statusMessage;
             WriteProgress(record);
         }
 
-        protected void GetRelayInformation()
+        protected internal void GetRelayInformation()
         {
             Track2HybridConnectivityManagementClient myclient = new Track2HybridConnectivityManagementClient(AzureSession.Instance.ClientFactory,
                                                                                                              DefaultProfile.DefaultContext);
@@ -329,7 +332,7 @@ namespace Microsoft.Azure.Commands.Ssh
 
         }
 
-        protected void GetVmIpAddress()
+        protected internal void GetVmIpAddress()
         {
             Ip = AzureUtils.GetFirstPublicIp(Name, ResourceGroupName);
             if (Ip == null)
@@ -339,7 +342,7 @@ namespace Microsoft.Azure.Commands.Ssh
             }
         }
 
-        protected void PrepareAadCredentials(string credentialFolder = null)
+        protected internal void PrepareAadCredentials(string credentialFolder = null)
         {
             deleteCert = true;
             deleteKeys = CheckOrCreatePublicAndPrivateKeyFile(credentialFolder);
@@ -347,7 +350,7 @@ namespace Microsoft.Azure.Commands.Ssh
             LocalUser = GetSSHCertPrincipals(CertificateFile)[0];
         }
 
-        protected string GetCertificateExpirationTimes()
+        protected internal string GetCertificateExpirationTimes()
         {
             string[] certificateInfo = GetSSHCertInfo(this.CertificateFile);
             foreach (string line in certificateInfo)
@@ -363,7 +366,7 @@ namespace Microsoft.Azure.Commands.Ssh
             return null;
         }
 
-        protected string GetSSHClientPath(string sshCommand)
+        protected internal string GetSSHClientPath(string sshCommand)
         {
             string sshPath;
             string commandExecutable = sshCommand;
@@ -397,7 +400,7 @@ namespace Microsoft.Azure.Commands.Ssh
             return sshPath;
         }
 
-        protected string GetClientSideProxy()
+        protected internal string GetClientSideProxy()
         {
             string proxyPath = null;
             string oldProxyPattern = null;
@@ -444,7 +447,7 @@ namespace Microsoft.Azure.Commands.Ssh
             return proxyPath;
         }
 
-        protected void DeleteFile(string fileName, string warningMessage = null)
+        protected internal void DeleteFile(string fileName, string warningMessage = null)
         {
             if (File.Exists(fileName))
             {
@@ -466,7 +469,7 @@ namespace Microsoft.Azure.Commands.Ssh
             }
         }
 
-        protected void DeleteDirectory(string dirPath, string warningMessage = null)
+        protected internal void DeleteDirectory(string dirPath, string warningMessage = null)
         {
             if (Directory.Exists(dirPath))
             {
@@ -487,8 +490,8 @@ namespace Microsoft.Azure.Commands.Ssh
                 }
             }
         }
-        #endregion
-        public bool IsArc()
+
+        protected internal bool IsArc()
         {
             if (ResourceType.Equals("Microsoft.HybridCompute/machines"))
             {
@@ -496,6 +499,8 @@ namespace Microsoft.Azure.Commands.Ssh
             }
             return false;
         }
+        #endregion
+
 
         #region Private Methods
         private void ValidateParameters()
@@ -694,7 +699,10 @@ namespace Microsoft.Azure.Commands.Ssh
             return dirname;
         }
 
-        private void GetProxyUrlAndFilename(ref string proxyPath, ref string oldProxyPattern, ref string requestUrl)
+        private void GetProxyUrlAndFilename(
+            ref string proxyPath,
+            ref string oldProxyPattern,
+            ref string requestUrl)
         {
             string os;
             string architecture;

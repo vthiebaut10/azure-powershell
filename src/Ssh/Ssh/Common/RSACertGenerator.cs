@@ -14,7 +14,7 @@
 
 namespace Microsoft.Azure.Commands.Ssh
 {
-    public class RSACertGenerator
+    internal class RSACertGenerator
     {
         private const string RsaOpenSshPrefix = "ssh-rsa-cert-v01@openssh.com";
 

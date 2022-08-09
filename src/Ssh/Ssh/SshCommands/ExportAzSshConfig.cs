@@ -8,12 +8,14 @@ using Microsoft.Azure.PowerShell.Cmdlets.Ssh.Common;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Security.AccessControl;
+using System.Text;
 
 namespace Microsoft.Azure.Commands.Ssh
 {   
     [Cmdlet("Export",
         ResourceManager.Common.AzureRMConstants.AzureRMPrefix + "SshConfig")]
-    [OutputType(typeof(PSSshConfigEntry))]
+    //[OutputType(typeof(PSSshConfigEntry))]
+    [OutputType(typeof(bool))]
     public sealed class ExportAzSshConfig : SshBaseCmdlet
     {
         #region Supress Enter-AzVM Parameters
@@ -27,7 +29,7 @@ namespace Microsoft.Azure.Commands.Ssh
         #endregion
 
         #region Properties
-        public string RelayInfoPath { get; set; }
+        internal string RelayInfoPath { get; set; }
         #endregion
 
         public override void ExecuteCmdlet()
@@ -75,6 +77,7 @@ namespace Microsoft.Azure.Commands.Ssh
         }
 
         #region Private Methods
+
         private void CreateRelayInfoFile()
         {
             string relayInfoDir = GetKeysDestinationFolder();
