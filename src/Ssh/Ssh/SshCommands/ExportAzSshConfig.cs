@@ -1,14 +1,10 @@
-﻿using System;
-using System.IO;
+﻿using System.IO;
 using Microsoft.Azure.Commands.Ssh.Models;
 using System.Management.Automation;
-using Microsoft.Azure.Commands.ResourceManager.Common.ArgumentCompleters;
 using Microsoft.Azure.Commands.Common.Exceptions;
-using Microsoft.Azure.PowerShell.Cmdlets.Ssh.Common;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
-using System.Security.AccessControl;
-using System.Text;
+using System.Collections.Generic;
 
 namespace Microsoft.Azure.Commands.Ssh
 {   
@@ -66,7 +62,7 @@ namespace Microsoft.Azure.Commands.Ssh
             }
 
             PSSshConfigEntry entry = 
-                new PSSshConfigEntry(this);
+                new PSSshConfigEntry(CreateConfigDict());
 
             StreamWriter configSW = new StreamWriter(ConfigFilePath, !Overwrite);
             configSW.WriteLine(entry.ConfigString);
@@ -77,6 +73,37 @@ namespace Microsoft.Azure.Commands.Ssh
         }
 
         #region Private Methods
+
+        private Dictionary<string, string> CreateConfigDict()
+        {
+            Dictionary<string, string> Config = new Dictionary<string, string>();
+            if (ResourceGroupName != null && Name != null) { Config.Add("Host", $"{ResourceGroupName}-{Name}"); }
+            else { Config.Add("Host", Ip); }
+
+            if (IsArc())
+            {
+                Config.Add("HostName", Name);
+                Config.Add("ProxyCommand", $"\"{proxyPath}\" -r \"{RelayInfoPath}\"");
+                if (Port != null)
+                    Config["ProxyCommand"] = Config["ProxyCommand"] + $" -p {Port}";
+            }
+            else
+            {
+                Config.Add("Port", Port);
+                if (Ip != null) { Config.Add("HostName", Ip); }
+                else { Config.Add("HostName", "*"); }
+            }
+
+            Config.Add("User", LocalUser);
+            Config.Add("CertificateFile", CertificateFile);
+            Config.Add("IdentityFile", PrivateKeyFile);
+            Config.Add("ResourceType", ResourceType);
+
+            if (deleteCert) { Config.Add("LoginType", "AAD"); }
+            else { Config.Add("LoginType", "LocalUser"); }
+            
+            return Config;
+        }
 
         private void CreateRelayInfoFile()
         {

@@ -276,6 +276,7 @@ namespace Microsoft.Azure.Commands.Ssh
 
         protected internal void BeforeExecution()
         {
+            string a = getProxyPath();
             switch (ParameterSetName)
             {
                 case IpAddressParameterSet:
@@ -499,6 +500,7 @@ namespace Microsoft.Azure.Commands.Ssh
             }
             return false;
         }
+
         #endregion
 
 
@@ -697,6 +699,56 @@ namespace Microsoft.Azure.Commands.Ssh
             Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), dirnameBuilder.ToString()));
 
             return dirname;
+        }
+
+        private string getProxyPath()
+        {
+            string os;
+            string architecture;
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                os = "windows";
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                os = "linux";
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                os = "darwin";
+            }
+            else
+            {
+                throw new AzPSApplicationException("Operating System not supported.");
+            }
+
+            if (Environment.Is64BitProcess)
+            {
+                architecture = "amd64";
+            }
+            else
+            {
+                architecture = "386";
+            }
+
+            string proxyName = "sshProxy_" + os + "_" + architecture;
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                proxyName = proxyName + ".exe";
+            }
+
+            string assemblyPath = this.GetType().Assembly.Location;
+            string assemblyDirectory = Path.GetDirectoryName(assemblyPath);
+            string proxyPath = Path.Combine(assemblyDirectory, proxyName);
+
+            if (File.Exists(proxyPath))
+            {
+                return proxyPath;
+            }
+            throw new AzPSApplicationException("Unable to find proxy. Reinstall extension?");
+
+            //Check for a hash to make sure the assembly is for real before returning
         }
 
         private void GetProxyUrlAndFilename(

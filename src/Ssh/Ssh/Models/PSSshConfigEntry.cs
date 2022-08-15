@@ -13,33 +13,76 @@
 // ----------------------------------------------------------------------------------
 
 using System.Text;
+using System.Collections.Generic;
 
 namespace Microsoft.Azure.Commands.Ssh.Models
 {
-    public class PSSshConfigEntry
+    /// <summary>
+    /// Class that represents an Ssh Configuration file to connect to Azure Resources.
+    /// </summary>
+    internal class PSSshConfigEntry
     {
+        /// <summary>
+        /// Alias of the host in the config file.
+        /// If we know Resource Name and Resource Group, host will be "{rg}-{name}"
+        /// If we only know the Ip, host will be "{Ip}"
+        /// </summary>
         public string Host { get; set; }
 
+        /// <summary>
+        /// Actual host name. Ip address for Azure VMs and resource name for arc servers.
+        /// </summary>
         public string HostName { get; set; }
 
+        /// <summary>
+        /// Username.
+        /// </summary>
         public string User { get; set; }
-
+        
+        /// <summary>
+        /// Path to certificate file.
+        /// </summary>
         public string CertificateFile { get; set; }
 
+        /// <summary>
+        /// Path to private key file.
+        /// </summary>
         public string IdentityFile { get; set; }
 
+        /// <summary>
+        /// Microsoft.HybridCompute/machines or Microsoft.Compute/virtualMachines.
+        /// </summary>
         public string ResourceType { get; set; }
 
+        /// <summary>
+        /// Command to connect to host via Arc Connectivity Proxy.
+        /// </summary>
         public string ProxyCommand { get; set; }
 
+        /// <summary>
+        /// Ssh Port.
+        /// </summary>
         public string Port { get; set; }
 
+        /// <summary>
+        /// Either AAD or LocalUser
+        /// </summary>
+        public string LoginType { get; set; }
+
+        /// <summary>
+        /// String built from the value of this object's properties.
+        /// Note 1: If LocalUser login, "-{localusername}" is appended to host.
+        /// Note 2: Azure VMs have two entries if resource name and group are known.
+        ///         One with {rg}-{name} as host, and one with {ip} as host.
+        /// </summary>
         public string ConfigString
         {
             get
             {
                 StringBuilder builder = new StringBuilder();
-                builder.AppendLine($"Host {this.Host}");
+                if (LoginType.Equals("AAD")) { builder.AppendLine($"Host {this.Host}"); }
+                else { builder.AppendLine($"Host {this.Host}-{this.User}"); }
+
                 if (!HostName.Equals(Host))
                 {
                     builder.AppendLine($"\tHostName {this.HostName}");
@@ -52,7 +95,9 @@ namespace Microsoft.Azure.Commands.Ssh.Models
 
                 if (ResourceType.Equals("Microsoft.Compute/virtualMachines") && !HostName.Equals(Host))
                 {
-                    builder.AppendLine(string.Format("\nHost {0}", this.HostName));
+                    if (LoginType.Equals("AAD")) { builder.AppendLine($"\nHost {this.HostName}"); }
+                    else { builder.AppendLine($"\nHost {this.HostName}-{this.User}"); }
+                    
                     builder.AppendLine(string.Format("\tUser {0}", this.User));
                     this.AppendKeyValuePairToStringBuilderIfNotValueNull("CertificateFile", this.CertificateFile, builder);
                     this.AppendKeyValuePairToStringBuilderIfNotValueNull("IdentityFile", this.IdentityFile, builder);
@@ -63,32 +108,26 @@ namespace Microsoft.Azure.Commands.Ssh.Models
             }
         }
 
-        // This is pretty horrible, but it does help me avoid passing a bunch of parameters.
-        // Rethink this.
-        public PSSshConfigEntry(ExportAzSshConfig SshCmdlet)
+        public PSSshConfigEntry(Dictionary<string, string> configEntry)
         {
-            if (SshCmdlet.ResourceGroupName != null && SshCmdlet.Name != null) { Host = SshCmdlet.ResourceGroupName + "-" + SshCmdlet.Name; }
-            else { Host = SshCmdlet.Ip; }
+            this.Host = GetPropertyValueFromConfigDictionary(configEntry, "Host");
+            this.HostName = GetPropertyValueFromConfigDictionary(configEntry, "HostName");
+            this.ProxyCommand = GetPropertyValueFromConfigDictionary(configEntry, "ProxyCommand");
+            this.Port = GetPropertyValueFromConfigDictionary(configEntry, "Port");
+            this.User = GetPropertyValueFromConfigDictionary(configEntry, "User");
+            this.IdentityFile = GetPropertyValueFromConfigDictionary(configEntry, "IdentityFile");
+            this.CertificateFile = GetPropertyValueFromConfigDictionary(configEntry, "CertificateFile");
+            this.ResourceType = GetPropertyValueFromConfigDictionary(configEntry, "ResourceType");
+            this.LoginType = GetPropertyValueFromConfigDictionary(configEntry, "LoginType");
+        }
 
-            if (SshCmdlet.IsArc()) 
-            { 
-                HostName = SshCmdlet.Name;
-                ProxyCommand = "\"" + SshCmdlet.proxyPath + "\" -r \"" + SshCmdlet.RelayInfoPath + "\"";
-                if (SshCmdlet.Port != null)
-                {
-                    ProxyCommand = ProxyCommand + " -p " + SshCmdlet.Port;
-                }
-            }
-            else
+        private string GetPropertyValueFromConfigDictionary(Dictionary<string, string> configEntry, string KeyName)
+        {
+            if (configEntry.ContainsKey(KeyName))
             {
-                Port = SshCmdlet.Port;
-                if (SshCmdlet.Ip != null) { HostName = SshCmdlet.Ip; }
-                else { HostName = "*";  }
+                return configEntry[KeyName];
             }
-            User = SshCmdlet.LocalUser;
-            CertificateFile = SshCmdlet.CertificateFile;
-            IdentityFile = SshCmdlet.PrivateKeyFile;
-            ResourceType = SshCmdlet.ResourceType;
+            return null;
         }
 
         private void AppendKeyValuePairToStringBuilderIfNotValueNull(string key, string value, StringBuilder builder)
