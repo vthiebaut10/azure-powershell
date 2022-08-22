@@ -17,7 +17,6 @@ using Microsoft.Azure.Commands.ResourceManager.Common;
 using System.Management.Automation;
 using Microsoft.WindowsAzure.Commands.Utilities.Common;
 using Microsoft.Azure.Commands.Common.Authentication;
-using Microsoft.Azure.Commands.Common.Authentication.ResourceManager;
 using System.Text.RegularExpressions;
 using System.IO;
 using System.Text;
