@@ -313,6 +313,7 @@ namespace Microsoft.Azure.Commands.Ssh
 
         protected internal void ValidateParameters()
         {
+            FindProxyModuleInstalled();
             var context = DefaultProfile.DefaultContext;
             if (LocalUser == null && context.Account.Type == AzureAccount.AccountType.ServicePrincipal)
             {
@@ -518,54 +519,6 @@ namespace Microsoft.Azure.Commands.Ssh
             return appInfo.Path;
         }
 
-        protected internal string GetClientSideProxy()
-        {
-            string proxyPath = null;
-            string oldProxyPattern = null;
-            string requestUrl = null;
-
-            GetProxyUrlAndFilename(ref proxyPath, ref oldProxyPattern, ref requestUrl);
-
-            if (!File.Exists(proxyPath))
-            {
-                string proxyDir = Path.GetDirectoryName(proxyPath);
-
-                if (!Directory.Exists(proxyDir))
-                {
-                    Directory.CreateDirectory(proxyDir);
-                }
-                else
-                {
-                    var files = Directory.GetFiles(proxyDir, oldProxyPattern);
-                    foreach (string file in files)
-                    {
-                        try
-                        {
-                            File.Delete(file);
-                        }
-                        catch (Exception exception)
-                        {
-                            WriteWarning(String.Format(Resources.FailedToDeleteOldProxy, file, exception.Message));
-                        }
-                    }
-                }
-
-                try
-                {
-                    WebClient wc = new WebClient();
-                    wc.DownloadFile(new Uri(requestUrl), proxyPath);
-                }
-                catch (Exception exception)
-                {
-                    string errorMessage = String.Format(Resources.FailedToDownloadProxy, requestUrl, exception.Message);
-                    throw new AzPSApplicationException(errorMessage);
-                }
-
-                ValidateSshProxy(proxyPath);
-            }
-            return proxyPath;
-        }
-
         protected internal void DeleteFile(string fileName, string warningMessage = null)
         {
             if (File.Exists(fileName))
@@ -620,6 +573,36 @@ namespace Microsoft.Azure.Commands.Ssh
                 return true;
             }
             return false;
+        }
+
+        /*
+         * Method for checking if Az.Ssh.ArcProxy module is installed
+         */
+        protected internal string FindProxyModuleInstalled()
+        {
+            var results = InvokeCommand.InvokeScript(
+                script: "(Get-module -ListAvailable -Name Az.Ssh.ArcProxy).Path");
+
+            if (results.Count == 0)
+            {
+                throw new AzPSApplicationException("Unable to find Az.Ssh.ArcProxy module installed. In order to connect to an arc server please install Az.Ssh.ArcProxy module");
+            }
+
+            foreach (var result in results)
+            {
+                string tempPath = (string)result.BaseObject;
+
+                string proxyPath = GetProxyPath(tempPath);
+
+                if (!File.Exists(proxyPath) || !ValidateSshProxy(proxyPath))
+                {
+                    continue;
+                }
+
+                return proxyPath;
+            }
+
+            throw new AzPSApplicationException("Unable to find a valid proxy");
         }
 
         #endregion
@@ -807,10 +790,7 @@ namespace Microsoft.Azure.Commands.Ssh
             return dirname;
         }
 
-        private void GetProxyUrlAndFilename(
-            ref string proxyPath,
-            ref string oldProxyPattern,
-            ref string requestUrl)
+        private string GetProxyPath(string modulePath)
         {
             string os;
             string architecture;
@@ -842,23 +822,19 @@ namespace Microsoft.Azure.Commands.Ssh
                 architecture = "386";
             }
 
-            string proxyName = "sshProxy_" + os + "_" + architecture;
-            requestUrl = clientProxyStorageUrl + "/" + clientProxyRelease + "/" + proxyName + "_" + clientProxyVersion;
-
-            string installPath = proxyName + "_" + clientProxyVersion.Replace('.', '_');
-            oldProxyPattern = proxyName + "*";
+            string proxyName = $"sshProxy_{os}_{architecture}_{clientProxyVersion.Replace('.', '_')}";
 
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                requestUrl = requestUrl + ".exe";
-                installPath = installPath + ".exe";
-                oldProxyPattern = oldProxyPattern + ".exe";
+                proxyName += ".exe";
             }
 
-            proxyPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), Path.Combine(".clientsshproxy", installPath));
+            string parentDirectory = Directory.GetParent(modulePath).FullName;
+
+            return Path.Combine(parentDirectory, proxyName);
         }
 
-        private void ValidateSshProxy(string path)
+        private bool ValidateSshProxy(string path)
         
         {
             string hashString;
@@ -892,13 +868,13 @@ namespace Microsoft.Azure.Commands.Ssh
                     isValid = hashString.Equals(sshproxy_darwin_amd64_sha256_hash);
                     break;
             }
-
-            if (!isValid)
+            return isValid;
+            /*if (!isValid)
             {
                 WriteWarning($"Validation of SSH Proxy {path} failed. Removing file from system.");
                 DeleteFile(path);
                 throw new AzPSApplicationException("Failed to download valid SSH Proxy. Unable to continue cmdlet execution.");
-            }
+            }*/
         }
 #endregion
 
