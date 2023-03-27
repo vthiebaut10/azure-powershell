@@ -74,7 +74,7 @@ namespace Microsoft.Azure.Commands.Ssh
             }
             if (IsArc())
             {
-                proxyPath = FindProxyModuleInstalled();
+                proxyPath = GetInstalledProxyModulePath();
                 UpdateProgressBar(record, $"Dowloaded SSH Proxy, saved to {proxyPath}", 25);
                 GetRelayInformation();
                 UpdateProgressBar(record, $"Retrieved Relay Information", 50);

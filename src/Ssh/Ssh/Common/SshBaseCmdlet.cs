@@ -313,7 +313,6 @@ namespace Microsoft.Azure.Commands.Ssh
 
         protected internal void ValidateParameters()
         {
-            FindProxyModuleInstalled();
             var context = DefaultProfile.DefaultContext;
             if (LocalUser == null && context.Account.Type == AzureAccount.AccountType.ServicePrincipal)
             {
@@ -575,31 +574,30 @@ namespace Microsoft.Azure.Commands.Ssh
             return false;
         }
 
-        /*
-         * Method for checking if Az.Ssh.ArcProxy module is installed
-         */
-        protected internal string FindProxyModuleInstalled()
+        /// <summary>
+        /// Get the path of the required Ssh Proxy from the Az.Ssh.ArcProxy module
+        /// that should be installed, per pre-reqs.
+        /// </summary>
+        /// <returns>Path to Proxy Executable</returns>
+        /// <exception cref="AzPSApplicationException"></exception>
+        protected internal string GetInstalledProxyModulePath()
         {
             var results = InvokeCommand.InvokeScript(
                 script: "(Get-module -ListAvailable -Name Az.Ssh.ArcProxy).Path");
 
-            if (results.Count == 0)
-            {
-                throw new AzPSApplicationException("Unable to find Az.Ssh.ArcProxy module installed. In order to connect to an arc server please install Az.Ssh.ArcProxy module");
-            }
-
             foreach (var result in results)
             {
-                string tempPath = (string)result.BaseObject;
-
-                string proxyPath = GetProxyPath(tempPath);
-
-                if (!File.Exists(proxyPath) || !ValidateSshProxy(proxyPath))
+                if (result?.BaseObject is string tempPath)
                 {
-                    continue;
-                }
+                    string proxyPath = GetProxyPath(tempPath);
 
-                return proxyPath;
+                    if (!File.Exists(proxyPath) || !ValidateSshProxy(proxyPath))
+                    {
+                        continue;
+                    }
+
+                    return proxyPath;
+                }
             }
 
             throw new AzPSApplicationException("Unable to find a valid proxy");
@@ -869,12 +867,6 @@ namespace Microsoft.Azure.Commands.Ssh
                     break;
             }
             return isValid;
-            /*if (!isValid)
-            {
-                WriteWarning($"Validation of SSH Proxy {path} failed. Removing file from system.");
-                DeleteFile(path);
-                throw new AzPSApplicationException("Failed to download valid SSH Proxy. Unable to continue cmdlet execution.");
-            }*/
         }
 #endregion
 
