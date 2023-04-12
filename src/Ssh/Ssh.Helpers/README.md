@@ -6,7 +6,6 @@ In this directory, run AutoRest:
 ```
 autorest.cmd README.md --version=v2 --tag=Compute
 autorest.cmd README.md --version=v2 --tag=HybridConnectivity
-autorest.cmd README.md --version=v2 --tag=HybridCompute
 autorest.cmd README.md --version=v2 --tag=Network
 ```
 
@@ -25,7 +24,7 @@ license-header: MICROSOFT_MIT_NO_VERSION
 ### Tag: Compute
 ``` yaml $(tag) == 'Compute'
 input-file:
-  - https://github.com/Azure/azure-rest-api-specs/blob/81cd88a080c4bf4bb251afbe62892a6e220cb2b4/specification/compute/resource-manager/Microsoft.Compute/ComputeRP/stable/2022-03-01/virtualMachine.json
+  - https://github.com/Azure/azure-rest-api-specs/blob/0981d741705c4dcc72efb1e3a39dbe9124c84d83/specification/compute/resource-manager/Microsoft.Compute/ComputeRP/stable/2022-08-01/virtualMachine.json
 
 output-folder: Compute
 
@@ -68,7 +67,7 @@ directive:
 ### Tag: HybridConnectivity
 ``` yaml $(tag) == 'HybridConnectivity'
 input-file:
-  - https://github.com/Azure/azure-rest-api-specs/blob/81cd88a080c4bf4bb251afbe62892a6e220cb2b4/specification/hybridconnectivity/resource-manager/Microsoft.HybridConnectivity/preview/2021-10-06-preview/hybridconnectivity.json
+  - https://github.com/Azure/azure-rest-api-specs/blob/0981d741705c4dcc72efb1e3a39dbe9124c84d83/specification/hybridconnectivity/resource-manager/Microsoft.HybridConnectivity/stable/2023-03-15/hybridconnectivity.json
 
 output-folder: HybridConnectivity
 
@@ -78,44 +77,26 @@ directive:
   - remove-operation:
     - Operations_List
     - Endpoints_List
-    - Endpoints_Get
+#    - Endpoints_Get
 #    - Endpoints_CreateOrUpdate
     - Endpoints_Update
     - Endpoints_Delete
+    - ServiceConfigurations_ListByEndpointResource
+#    - ServiceConfigurations_Get
+#    - ServiceConfigurations_CreateOrupdate
+    - ServiceConfigurations_Update
+    - ServiceConfigurations_Delete
 #    - Endpoints_ListCredentials
-```
-
-
-### Tag: HybridCompute
-``` yaml $(tag) == 'HybridCompute'
-input-file:
-  - https://github.com/Azure/azure-rest-api-specs/blob/81cd88a080c4bf4bb251afbe62892a6e220cb2b4/specification/hybridcompute/resource-manager/Microsoft.HybridCompute/stable/2020-08-02/HybridCompute.json
-
-output-folder: HybridCompute
-
-namespace: Microsoft.Azure.PowerShell.Ssh.Helpers.HybridCompute
-
-directive:
-  - remove-operation:
-    - Machines_CreateOrUpdate
-    - Machines_Update
-    - Machines_Delete
-#    - Machines_Get
-    - Machines_ListByResourceGroup
-    - Machines_ListBySubscription
-    - MachineExtensions_CreateOrUpdate
-    - MachineExtensions_Update
-    - MachineExtensions_Delete
-    - MachineExtensions_Get
-    - MachineExtensions_List
-    - Operations_List
+    - Endpoints_ListIngressGatewayCredentials
+    - Endpoints_ListManagedProxyDetails
+    
 ```
 
 ### Tag: Network
 ``` yaml $(tag) == 'Network'
 input-file:
-  - https://github.com/Azure/azure-rest-api-specs/blob/81cd88a080c4bf4bb251afbe62892a6e220cb2b4/specification/network/resource-manager/Microsoft.Network/stable/2021-08-01/networkInterface.json
-  - https://github.com/Azure/azure-rest-api-specs/blob/81cd88a080c4bf4bb251afbe62892a6e220cb2b4/specification/network/resource-manager/Microsoft.Network/stable/2021-08-01/publicIpAddress.json
+  - https://github.com/Azure/azure-rest-api-specs/blob/0981d741705c4dcc72efb1e3a39dbe9124c84d83/specification/network/resource-manager/Microsoft.Network/stable/2022-09-01/networkInterface.json
+  - https://github.com/Azure/azure-rest-api-specs/blob/0981d741705c4dcc72efb1e3a39dbe9124c84d83/specification/network/resource-manager/Microsoft.Network/stable/2022-09-01/publicIpAddress.json
 
 output-folder: Network
 
@@ -144,4 +125,5 @@ directive:
     - PublicIPAddresses_UpdateTags
     - PublicIPAddresses_ListAll
     - PublicIPAddresses_List
+    - PublicIPAddresses_DdosProtectionStatus
 ```

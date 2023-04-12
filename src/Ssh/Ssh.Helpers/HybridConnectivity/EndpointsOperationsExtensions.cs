@@ -22,6 +22,48 @@ namespace Microsoft.Azure.PowerShell.Ssh.Helpers.HybridConnectivity
     public static partial class EndpointsOperationsExtensions
     {
             /// <summary>
+            /// Gets the endpoint to the resource.
+            /// </summary>
+            /// <param name='operations'>
+            /// The operations group for this extension method.
+            /// </param>
+            /// <param name='resourceUri'>
+            /// The fully qualified Azure Resource manager identifier of the resource to be
+            /// connected.
+            /// </param>
+            /// <param name='endpointName'>
+            /// The endpoint name.
+            /// </param>
+            public static EndpointResource Get(this IEndpointsOperations operations, string resourceUri, string endpointName)
+            {
+                return operations.GetAsync(resourceUri, endpointName).GetAwaiter().GetResult();
+            }
+
+            /// <summary>
+            /// Gets the endpoint to the resource.
+            /// </summary>
+            /// <param name='operations'>
+            /// The operations group for this extension method.
+            /// </param>
+            /// <param name='resourceUri'>
+            /// The fully qualified Azure Resource manager identifier of the resource to be
+            /// connected.
+            /// </param>
+            /// <param name='endpointName'>
+            /// The endpoint name.
+            /// </param>
+            /// <param name='cancellationToken'>
+            /// The cancellation token.
+            /// </param>
+            public static async Task<EndpointResource> GetAsync(this IEndpointsOperations operations, string resourceUri, string endpointName, CancellationToken cancellationToken = default(CancellationToken))
+            {
+                using (var _result = await operations.GetWithHttpMessagesAsync(resourceUri, endpointName, null, cancellationToken).ConfigureAwait(false))
+                {
+                    return _result.Body;
+                }
+            }
+
+            /// <summary>
             /// Create or update the endpoint to the target resource.
             /// </summary>
             /// <param name='operations'>
@@ -85,9 +127,12 @@ namespace Microsoft.Azure.PowerShell.Ssh.Helpers.HybridConnectivity
             /// <param name='expiresin'>
             /// The is how long the endpoint access token is valid (in seconds).
             /// </param>
-            public static EndpointAccessResource ListCredentials(this IEndpointsOperations operations, string resourceUri, string endpointName, long? expiresin = 10800)
+            /// <param name='listCredentialsRequest'>
+            /// Object of type ListCredentialsRequest
+            /// </param>
+            public static EndpointAccessResource ListCredentials(this IEndpointsOperations operations, string resourceUri, string endpointName, long? expiresin = 10800, ListCredentialsRequest listCredentialsRequest = default(ListCredentialsRequest))
             {
-                return operations.ListCredentialsAsync(resourceUri, endpointName, expiresin).GetAwaiter().GetResult();
+                return operations.ListCredentialsAsync(resourceUri, endpointName, expiresin, listCredentialsRequest).GetAwaiter().GetResult();
             }
 
             /// <summary>
@@ -106,12 +151,15 @@ namespace Microsoft.Azure.PowerShell.Ssh.Helpers.HybridConnectivity
             /// <param name='expiresin'>
             /// The is how long the endpoint access token is valid (in seconds).
             /// </param>
+            /// <param name='listCredentialsRequest'>
+            /// Object of type ListCredentialsRequest
+            /// </param>
             /// <param name='cancellationToken'>
             /// The cancellation token.
             /// </param>
-            public static async Task<EndpointAccessResource> ListCredentialsAsync(this IEndpointsOperations operations, string resourceUri, string endpointName, long? expiresin = 10800, CancellationToken cancellationToken = default(CancellationToken))
+            public static async Task<EndpointAccessResource> ListCredentialsAsync(this IEndpointsOperations operations, string resourceUri, string endpointName, long? expiresin = 10800, ListCredentialsRequest listCredentialsRequest = default(ListCredentialsRequest), CancellationToken cancellationToken = default(CancellationToken))
             {
-                using (var _result = await operations.ListCredentialsWithHttpMessagesAsync(resourceUri, endpointName, expiresin, null, cancellationToken).ConfigureAwait(false))
+                using (var _result = await operations.ListCredentialsWithHttpMessagesAsync(resourceUri, endpointName, expiresin, listCredentialsRequest, null, cancellationToken).ConfigureAwait(false))
                 {
                     return _result.Body;
                 }
