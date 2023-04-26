@@ -142,7 +142,6 @@ namespace Microsoft.Azure.Commands.Ssh
 
         private int StartRDPConnection(Process sshProcess)
         {
-            //Process sshProcess = null;
             int success = 1;
 
             try
@@ -154,7 +153,6 @@ namespace Microsoft.Azure.Commands.Ssh
                 listener.Stop();
 
                 // Start SSH Process
-                //sshProcess = CreateSSHProcess();
                 sshProcess.StartInfo.RedirectStandardError = true;
                 sshProcess.Start();
 

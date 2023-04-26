@@ -94,20 +94,6 @@ namespace Microsoft.Azure.Commands.Ssh
         }
         private IpUtils _ipUtils;
 
-        /*internal RelayInformationUtils RelayInformationUtils
-        {
-            get
-            {
-                if (_relayUtils == null)
-                {
-                    _relayUtils = new RelayInformationUtils(DefaultProfile.DefaultContext);
-                }
-
-                return _relayUtils;
-            }
-        }
-        private RelayInformationUtils _relayUtils;*/
-
         private HybridConnectivityClient HybridConnectivityClient
         {
             get
