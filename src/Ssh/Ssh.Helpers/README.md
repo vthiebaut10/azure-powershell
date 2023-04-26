@@ -7,6 +7,8 @@ In this directory, run AutoRest:
 autorest.cmd README.md --version=v2 --tag=Compute
 autorest.cmd README.md --version=v2 --tag=HybridConnectivity
 autorest.cmd README.md --version=v2 --tag=Network
+autorest.cmd README.md --version=v2 --tag=HybridCompute
+
 ```
 
 ### AutoRest Configuration
@@ -126,4 +128,34 @@ directive:
     - PublicIPAddresses_ListAll
     - PublicIPAddresses_List
     - PublicIPAddresses_DdosProtectionStatus
+```
+
+### Tag: HybridCompute
+``` yaml $(tag) == 'HybridCompute'
+input-file:
+  - https://github.com/Azure/azure-rest-api-specs/blob/aef78a6d0f0bc49b42327621fc670200d7545816/specification/hybridcompute/resource-manager/Microsoft.HybridCompute/stable/2022-11-10/HybridCompute.json
+
+output-folder: HybridCompute
+
+namespace: Microsoft.Azure.PowerShell.Ssh.Helpers.HybridCompute
+
+directive:
+  - remove-operation:
+    - Machines_CreateOrUpdate
+    - Machines_Update
+    - Machines_Delete
+#    - Machines_Get
+    - Machines_ListByResourceGroup
+    - Machines_ListBySubscription
+    - MachineExtensions_CreateOrUpdate
+    - MachineExtensions_Update
+    - MachineExtensions_Delete
+    - MachineExtensions_Get
+    - MachineExtensions_List
+    - Operations_List
+    - UpgradeExtensions
+    - ExtensionMetadata_Get
+    - ExtensionMetadata_List
+    
+
 ```

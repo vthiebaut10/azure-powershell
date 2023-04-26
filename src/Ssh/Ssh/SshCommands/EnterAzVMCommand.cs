@@ -24,6 +24,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Text.RegularExpressions;
 using Microsoft.Azure.Commands.Ssh.Properties;
+using Microsoft.Azure.PowerShell.Ssh.Helpers.HybridConnectivity.Models;
 
 namespace Microsoft.Azure.Commands.Ssh
 {
@@ -67,6 +68,8 @@ namespace Microsoft.Azure.Commands.Ssh
             ProgressRecord record = new ProgressRecord(0, "Prepare for starting SSH connection", "Start Preparing");
             UpdateProgressBar(record, "Start preparing", 0);
 
+            string relayInfo = String.Empty;
+
             if (!IsArc() && !ParameterSetName.Equals(IpAddressParameterSet))
             {
                 GetVmIpAddress();
@@ -76,7 +79,7 @@ namespace Microsoft.Azure.Commands.Ssh
             {
                 proxyPath = GetClientSideProxy();
                 UpdateProgressBar(record, $"Dowloaded SSH Proxy, saved to {proxyPath}", 25);
-                GetRelayInformation();
+                relayInfo = ConvertEndpointAccessToBase64String(GetRelayInformation());
                 UpdateProgressBar(record, $"Retrieved Relay Information", 50);
             }
             try
@@ -91,13 +94,15 @@ namespace Microsoft.Azure.Commands.Ssh
 
 
                 int sshStatus = 0;
+
+                Process sshProcess = CreateSSHProcess(relayInfo);
                 if (Rdp.IsPresent)
                 {
-                    sshStatus = StartRDPConnection();
+                    sshStatus = StartRDPConnection(sshProcess);
                 }
                 else
                 {
-                    sshStatus = StartSSHConnection();
+                    sshStatus = StartSSHConnection(sshProcess);
                 }
                 
                 if (this.PassThru.IsPresent)
@@ -113,10 +118,8 @@ namespace Microsoft.Azure.Commands.Ssh
 
         #region Private Methods
 
-        private int StartSSHConnection()
+        private int StartSSHConnection(Process sshProcess)
         {
-            Process sshProcess = CreateSSHProcess();
-
             // Redirect OpenSSH Logs and use it to determine when authentication succeeds, so that cleanup can be performed.
             // Redirect SSH Proxy logs to provide helpful error messaged when well known errors happen.
             if (!SshLogsPrinted() && !IsDebugMode() &&
@@ -137,9 +140,9 @@ namespace Microsoft.Azure.Commands.Ssh
             return sshProcess.ExitCode;
         }
 
-        private int StartRDPConnection()
+        private int StartRDPConnection(Process sshProcess)
         {
-            Process sshProcess = null;
+            //Process sshProcess = null;
             int success = 1;
 
             try
@@ -151,7 +154,7 @@ namespace Microsoft.Azure.Commands.Ssh
                 listener.Stop();
 
                 // Start SSH Process
-                sshProcess = CreateSSHProcess();
+                //sshProcess = CreateSSHProcess();
                 sshProcess.StartInfo.RedirectStandardError = true;
                 sshProcess.Start();
 
@@ -193,7 +196,7 @@ namespace Microsoft.Azure.Commands.Ssh
             return success;
         }
 
-        private Process CreateSSHProcess()
+        private Process CreateSSHProcess(string relayInfo)
         {
             string sshClient = GetClientApplicationPath("ssh");
             string command = $"{GetHost()} {BuildArgs()}";
