@@ -19,6 +19,7 @@ using Microsoft.Azure.Commands.Common.Exceptions;
 using System.Text.RegularExpressions;
 using System.Collections.Generic;
 using Microsoft.Azure.PowerShell.Ssh.Helpers.HybridConnectivity.Models;
+using System;
 
 namespace Microsoft.Azure.Commands.Ssh
 {   
@@ -76,6 +77,11 @@ namespace Microsoft.Azure.Commands.Ssh
             }
             if (IsArc())
             {
+                // Currently we just have this check for Arc Servers. For the remaining resource types we will add as usage increases.
+                if (ResourceType.Equals("Microsoft.HybridCompute/machines", StringComparison.CurrentCultureIgnoreCase))
+                {
+                    CheckIfAgentIsUpToDate();
+                }
                 proxyPath = GetClientSideProxy();
                 UpdateProgressBar(record, $"Downloaded proxy to {proxyPath}", 25);
                 EndpointAccessResource relayInfo = GetRelayInformation();
