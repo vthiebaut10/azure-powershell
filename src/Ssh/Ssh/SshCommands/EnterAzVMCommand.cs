@@ -392,7 +392,8 @@ namespace Microsoft.Azure.Commands.Ssh
         private void CheckForCommonErrors(string line)
         {
             // For now we are only checking for one error. Will add more common errors on later releases.
-            string pattern = "{\"level\":\"fatal\",\"msg\":\"sshproxy: error copying information from the connection: .*\",\"time\":\".*\"}.*";
+            //string pattern = "{\"level\":\"fatal\",\"msg\":\"sshproxy: error copying information from the connection: .*\",\"time\":\".*\"}.*";
+            string pattern = "{\"level\":\"fatal\",\"msg\":\"sshproxy: error copying information from the connection: .*\",\"proxyVersion\":\".*\"}.*";
             Regex regex = new Regex(pattern);
             if (regex.IsMatch(line))
             {

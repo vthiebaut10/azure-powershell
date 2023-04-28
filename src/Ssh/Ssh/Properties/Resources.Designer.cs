@@ -160,7 +160,7 @@ namespace Microsoft.Azure.Commands.Ssh.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Please make sure SSH port is allowed using &quot;azcmagent config list&quot; in the target Arc Server. Ensure SSHD is running on the target machine..
+        ///   Looks up a localized string similar to Unable to connect to target machine. Please make sure SSH port is allowed  in the target Arc Server and ensure SSHD is running on the target machine. For more information see: http://aka.ms/ssharc/allow-ports.
         /// </summary>
         internal static string MakeSurePortIsEnabled {
             get {

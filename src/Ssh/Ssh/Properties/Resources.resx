@@ -151,7 +151,7 @@
     <value>Failed to list resources in the {0} Resource Group with error: "{1}". Ensure that the Resource Group Name is correct and that you have Read role on that resource group.</value>
   </data>
   <data name="MakeSurePortIsEnabled" xml:space="preserve">
-    <value>Please make sure SSH port is allowed using "azcmagent config list" in the target Arc Server. Ensure SSHD is running on the target machine.</value>
+    <value>Unable to connect to target machine. Please make sure SSH port is allowed  in the target Arc Server and ensure SSHD is running on the target machine. For more information see: http://aka.ms/ssharc/allow-ports</value>
   </data>
   <data name="MstscClientNotFound" xml:space="preserve">
     <value>Unable to find Remote Desktop Client (mstsc.exe). Make sure to update the PATH environment variable to make client discoverable.</value>
