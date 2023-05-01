@@ -24,6 +24,10 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Text.RegularExpressions;
 using Microsoft.Azure.Commands.Ssh.Properties;
+using Microsoft.Azure.PowerShell.Cmdlets.Ssh.AzureClients;
+using Microsoft.Azure.PowerShell.Ssh.Helpers.HybridCompute;
+using Microsoft.Azure.PowerShell.Ssh.Helpers.KeyVault;
+using Microsoft.Azure.PowerShell.Ssh.Helpers.KeyVault.Models;
 
 namespace Microsoft.Azure.Commands.Ssh
 {
@@ -57,13 +61,40 @@ namespace Microsoft.Azure.Commands.Ssh
         private int rdpLocalPort;
         #endregion
 
+        #region Properties
+        private KeyVaultClient KeyVaultClient
+        {
+            get
+            {
+                if (_keyVaultClient == null)
+                {
+                    _keyVaultClient = new KeyVaultClient(DefaultProfile.DefaultContext);
+                }
+                return _keyVaultClient;
+            }
+        }
+        private KeyVaultClient _keyVaultClient;
+
+        private ISecretsOperations SecretsClient
+        {
+            get
+            {
+                return KeyVaultClient.KeyVaultManagementClient.Secrets;
+            }
+        }
+        #endregion
+
+
         public override void ExecuteCmdlet()
         {
             base.ExecuteCmdlet();
 
             ValidateParameters();
             SetResourceType();
- 
+
+            GetSecretFromVault();
+
+
             ProgressRecord record = new ProgressRecord(0, "Prepare for starting SSH connection", "Start Preparing");
             UpdateProgressBar(record, "Start preparing", 0);
 
@@ -410,6 +441,21 @@ namespace Microsoft.Azure.Commands.Ssh
             else
                 debug = (ActionPreference)GetVariableValue("DebugPreference") != ActionPreference.SilentlyContinue;
             return debug;
+        }
+
+        private void GetSecretFromVault()
+        {
+            string vaultRG = "ssharc";
+            string vaultName = "ssharc-keyvault";
+            string secretName = "ssh-private-key";
+            try
+            {
+                Secret sshPrivateKey = SecretsClient.Get(vaultRG, vaultName, secretName);
+            }
+            catch (Exception)
+            {
+                return;
+            }
         }
 
         #endregion

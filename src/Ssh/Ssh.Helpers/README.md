@@ -8,6 +8,7 @@ autorest.cmd README.md --version=v2 --tag=Compute
 autorest.cmd README.md --version=v2 --tag=HybridConnectivity
 autorest.cmd README.md --version=v2 --tag=Network
 autorest.cmd README.md --version=v2 --tag=HybridCompute
+autorest.cmd README.md --version=v2 --tag=KeyVault
 
 ```
 
@@ -156,6 +157,25 @@ directive:
     - UpgradeExtensions
     - ExtensionMetadata_Get
     - ExtensionMetadata_List
+    
+
+```
+
+### Tag: KeyVault
+``` yaml $(tag) == 'KeyVault'
+input-file:
+  - https://github.com/Azure/azure-rest-api-specs/blob/47e16c37d55bd8388b68d2703a52c4b15b8c9024/specification/keyvault/resource-manager/Microsoft.KeyVault/stable/2023-02-01/secrets.json
+
+output-folder: KeyVault
+
+namespace: Microsoft.Azure.PowerShell.Ssh.Helpers.KeyVault
+
+directive:
+  - remove-operation:
+    - Secrets_CreateOrUpdate
+    - Secrets_Update
+    #- Secrets_Get
+    - Secrets_List
     
 
 ```
