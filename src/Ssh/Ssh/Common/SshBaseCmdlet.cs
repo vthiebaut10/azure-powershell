@@ -519,6 +519,24 @@ namespace Microsoft.Azure.Commands.Ssh
             return cred;
         }
 
+        protected internal bool Chmod(string path)
+        {
+            string cmd = $"chmod +x {path}";
+            try
+            {
+                using (Process p = Process.Start("/bin/bash", $"-c \"{cmd}\""))
+                {
+                    p.WaitForExit();
+                    return p.ExitCode == 0;
+                }
+
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         protected internal void GetVmIpAddress()
         {
             string _message = "";
@@ -605,6 +623,11 @@ namespace Microsoft.Azure.Commands.Ssh
                     if (!File.Exists(proxyPath) || !ValidateSshProxy(proxyPath))
                     {
                         continue;
+                    }
+
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                    {
+                        Chmod(proxyPath);
                     }
 
                     return proxyPath;
