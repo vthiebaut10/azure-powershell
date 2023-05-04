@@ -43,6 +43,7 @@ using Microsoft.Azure.PowerShell.Ssh.Helpers.HybridConnectivity;
 using System.Management.Automation.Host;
 using Microsoft.Azure.PowerShell.Ssh.Helpers.HybridCompute;
 using Microsoft.Azure.PowerShell.Ssh.Helpers.HybridCompute.Models;
+using System.Management.Automation.Runspaces;
 
 namespace Microsoft.Azure.Commands.Ssh
 {
@@ -404,11 +405,6 @@ namespace Microsoft.Azure.Commands.Ssh
                 KeysDestinationFolder = GetUnresolvedPath(KeysDestinationFolder, nameof(KeysDestinationFolder));
             }
 
-            if (Port == null)
-            {
-                Port = "22";
-            }
-
         }
 
         protected internal void SetResourceType()
@@ -519,21 +515,31 @@ namespace Microsoft.Azure.Commands.Ssh
             return cred;
         }
 
-        protected internal bool Chmod(string path)
+        /// <summary>
+        /// Sets execute permission to proxy on Linux only.
+        /// </summary>
+        /// <param name="path"></param>
+        protected internal void SetExecuteFilePermission(string path)
         {
-            string cmd = $"chmod +x {path}";
-            try
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
-                using (Process p = Process.Start("/bin/bash", $"-c \"{cmd}\""))
+                try
                 {
-                    p.WaitForExit();
-                    return p.ExitCode == 0;
+                    var script = $"chmod +x {path}"; // should we just add permission for the owner? Or all users?
+                    var results = InvokeCommand.InvokeScript(
+                        script: script,
+                        useNewScope: true,
+                        writeToPipeline: PipelineResultTypes.None,
+                        input: null,
+                        args: null);
+                    Console.Write(results);
                 }
-
-            }
-            catch
-            {
-                return false;
+                catch
+                {
+                    // If this operation fails we want to warn the user
+                    return;
+                }
+                
             }
         }
 
@@ -625,10 +631,7 @@ namespace Microsoft.Azure.Commands.Ssh
                         continue;
                     }
 
-                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                    {
-                        Chmod(proxyPath);
-                    }
+                    SetExecuteFilePermission(proxyPath);
 
                     return proxyPath;
                 }
@@ -819,6 +822,7 @@ namespace Microsoft.Azure.Commands.Ssh
             }
         }
 
+        // Why is this public??
         public string GetRelayInfoExpiration(EndpointAccessResource cred)
         {
             if (cred != null && cred.ExpiresOn != null)
