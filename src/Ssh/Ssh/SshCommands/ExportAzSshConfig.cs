@@ -18,6 +18,8 @@ using System.Management.Automation;
 using Microsoft.Azure.Commands.Common.Exceptions;
 using System.Text.RegularExpressions;
 using System.Collections.Generic;
+using Microsoft.Azure.PowerShell.Ssh.Helpers.HybridConnectivity.Models;
+using System;
 
 namespace Microsoft.Azure.Commands.Ssh
 {   
@@ -75,11 +77,16 @@ namespace Microsoft.Azure.Commands.Ssh
             }
             if (IsArc())
             {
-                proxyPath = GetClientSideProxy();
+                // Currently we just have this check for Arc Servers. For the remaining resource types we will add as usage increases.
+                if (ResourceType.Equals("Microsoft.HybridCompute/machines", StringComparison.CurrentCultureIgnoreCase))
+                {
+                    CheckIfAgentIsUpToDate();
+                }
+                proxyPath = GetInstalledProxyModulePath();
                 UpdateProgressBar(record, $"Downloaded proxy to {proxyPath}", 25);
-                GetRelayInformation();
+                EndpointAccessResource relayInfo = GetRelayInformation();
                 UpdateProgressBar(record, "Retrieved relay information", 50);
-                CreateRelayInfoFile();
+                CreateRelayInfoFile(relayInfo);
                 UpdateProgressBar(record, "Created file containing relay information", 65);
             }
             if (LocalUser == null)
@@ -144,7 +151,7 @@ namespace Microsoft.Azure.Commands.Ssh
             return Config;
         }
 
-        private void CreateRelayInfoFile()
+        private void CreateRelayInfoFile(EndpointAccessResource relayInfo)
         {
             string relayInfoDir = GetKeysDestinationFolder();
             Directory.CreateDirectory(relayInfoDir);
@@ -153,10 +160,10 @@ namespace Microsoft.Azure.Commands.Ssh
             RelayInfoPath = Path.Combine(relayInfoDir, relayInfoFilename);
             DeleteFile(RelayInfoPath);
             StreamWriter relaySW = new StreamWriter(RelayInfoPath);
-            relaySW.WriteLine(relayInfo);
+            relaySW.WriteLine(ConvertEndpointAccessToBase64String(relayInfo));
             relaySW.Close();
 
-            string expiration = RelayInformationUtils.GetRelayInfoExpiration(relayInformationResource);
+            string expiration = GetRelayInfoExpiration(relayInfo);
             if (!string.IsNullOrEmpty(expiration))
                 WriteWarning($"Generated relay information file {RelayInfoPath} is valid until {expiration} in local time.");
             else
