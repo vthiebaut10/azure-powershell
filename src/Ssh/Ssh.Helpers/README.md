@@ -8,6 +8,8 @@ autorest.cmd README.md --version=v2 --tag=Compute
 autorest.cmd README.md --version=v2 --tag=HybridConnectivity
 autorest.cmd README.md --version=v2 --tag=HybridCompute
 autorest.cmd README.md --version=v2 --tag=Network
+autorest.cmd README.md --version=v2 --tag=ResourceGraph
+
 ```
 
 ### AutoRest Configuration
@@ -155,4 +157,19 @@ directive:
     - PublicIPAddresses_ListAll
     - PublicIPAddresses_List
     - PublicIPAddresses_DdosProtectionStatus
+```
+
+### Tag: ResourceGraph
+``` yaml $(tag) == 'ResourceGraph'
+input-file:
+  - https://github.com/Azure/azure-rest-api-specs/blob/b195dd7a970dbd1c6cbb50e6a6845d5d9a868b21/specification/resourcegraph/resource-manager/Microsoft.ResourceGraph/stable/2022-10-01/resourcegraph.json
+
+output-folder: ResourceGraph
+
+namespace: Microsoft.Azure.PowerShell.Ssh.Helpers.ResourceGraph
+
+directive:
+  - remove-operation:
+#    - Resources
+    - Operations_List
 ```
